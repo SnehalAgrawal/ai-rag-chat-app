@@ -1,0 +1,9 @@
+%% Source for docs/architecture.svg (hand-drawn SVG kept in sync with this file)
+flowchart LR
+  UI["Next.js UI<br/>upload + chat"] -->|"POST /upload (PDF)"| API["Express API"]
+  UI -->|"POST /chat (question)"| API
+  API -->|"parse + chunk<br/>500 words, 50 overlap"| API
+  API -->|"embed chunks / question"| LLM["OpenAI API<br/>or Ollama"]
+  API -->|"store / nearVector top 3"| DB[("Weaviate<br/>DocumentChunk")]
+  API -->|"question + 3 chunks"| LLM
+  LLM -->|answer| API --> UI

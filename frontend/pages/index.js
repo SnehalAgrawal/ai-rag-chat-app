@@ -10,7 +10,7 @@ export default function Home() {
   };
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '2rem' }}>
+    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '2rem', fontFamily: 'system-ui, sans-serif', lineHeight: 1.5 }}>
       <h1>RAG AI Chat</h1>
       {!uploaded ? (
         <FileUpload onUploadSuccess={handleUploadSuccess} />

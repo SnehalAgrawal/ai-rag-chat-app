@@ -11,10 +11,13 @@ const client = weaviate.client({
 
 const CLASS_NAME = 'DocumentChunk';
 
-async function ensureSchema() {
+async function hasCollection() {
   const schema = await client.schema.getter().do();
-  const classes = schema.classes.map(c => c.class);
-  if (!classes.includes(CLASS_NAME)) {
+  return (schema.classes || []).some(c => c.class === CLASS_NAME);
+}
+
+async function ensureSchema() {
+  if (!(await hasCollection())) {
     await client.schema.classCreator().withClass({
       class: CLASS_NAME,
       description: 'Document chunks for RAG',
@@ -55,4 +58,4 @@ async function query(nearVector, k = 3) {
   }));
 }
 
-module.exports = { batchUpsert, query };
+module.exports = { batchUpsert, query, hasCollection };

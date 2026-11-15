@@ -1,0 +1,9 @@
+node_modules/
+.env
+.next/
+out/
+*.log
+.DS_Store
+
+# Written by `next dev` (Next.js 16) on every start
+frontend/AGENTS.md

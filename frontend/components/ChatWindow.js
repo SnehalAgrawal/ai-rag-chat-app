@@ -65,7 +65,7 @@ export default function ChatWindow() {
           onKeyDown={handleKeyDown}
           disabled={loading}
           placeholder="Ask a question..."
-          style={{ flex: 1, padding: '0.5rem' }}
+          style={{ flex: 1, padding: '0.5rem', font: 'inherit' }}
         />
         <button onClick={handleSend} disabled={loading || !input}>
           {loading ? 'Thinking...' : 'Send'}
