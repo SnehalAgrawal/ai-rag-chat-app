@@ -9,12 +9,16 @@
 // Chunks are returned in rank order until the token budget is used; a chunk that does not
 // fit what is left is skipped, as in the measurements this is checked against.
 //
+// With a reranker, only the first stage's top `candidates` are kept, reordered by the
+// reranker's scores (ties keep their first-stage order), and the budget is filled from
+// that order; a chunk outside the candidates is never used.
+//
 // Search is exact (every chunk is scored), filtered to one collection before scoring. At
 // the size of a document collection that is fast, and it avoids the trap measured in the
 // vector-database article: filtering after an approximate search lost most results.
 
 import { BM25 } from "./keyword.js";
-import { cosine, rank, rrf, weighted, withinBudget } from "./rank.js";
+import { cosine, rank, rerankOrder, rrf, weighted, withinBudget } from "./rank.js";
 
 export const METHODS = ["vector", "keyword", "rrf", "weighted"];
 
@@ -73,14 +77,30 @@ export class Retriever {
    * The chunks to give the model for a question.
    * @returns {Promise<{ chunks: object[], tokens: number, timings: object }>}
    */
-  async search(question, { method = "rrf", budget = 1000, signal } = {}) {
+  async search(question, { method = "rrf", budget = 1000, rerank = null, signal } = {}) {
     const scores = await this.scores(question, { signal });
-    const ranked = this.ranking(method, scores);
+    let ranked = this.ranking(method, scores);
+    const timings = { ...scores.timings };
+    let rerankScores = null;
+    if (rerank?.reranker) {
+      const candidates = ranked.slice(0, rerank.candidates ?? 10);
+      const started = performance.now();
+      const values = await rerank.reranker.score(question, candidates.map((i) => this.chunks[i].text), { signal });
+      timings.rerankMs = performance.now() - started;
+      rerankScores = new Map(candidates.map((index, k) => [index, values[k]]));
+      ranked = rerankOrder(candidates, values);
+    }
     const chosen = withinBudget(ranked, this.chunks.map((c) => c.tokens), budget);
     const chunks = chosen.map((i, position) => {
       const { embedding, ...chunk } = this.chunks[i];
-      return { ...chunk, rank: position + 1, vectorScore: scores.vector[i], keywordScore: scores.keyword[i] };
+      return {
+        ...chunk,
+        rank: position + 1,
+        vectorScore: scores.vector[i],
+        keywordScore: scores.keyword[i],
+        ...(rerankScores ? { rerankScore: rerankScores.get(i) } : {}),
+      };
     });
-    return { chunks, tokens: chunks.reduce((n, c) => n + c.tokens, 0), timings: scores.timings };
+    return { chunks, tokens: chunks.reduce((n, c) => n + c.tokens, 0), timings };
   }
 }

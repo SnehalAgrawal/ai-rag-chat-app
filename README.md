@@ -6,7 +6,7 @@ Chat with your documents: answers that cite the passages they came from, built o
 >
 > 1. **Foundation** (done): the chunker, document storage, ingest, and the model providers, with tests.
 > 2. **Retrieval** (done): vector and keyword search fused with RRF, matching rag-engineering's published numbers exactly.
-> 3. Reranking: a cross-encoder, measured against an LLM judge.
+> 3. **Reranking** (done): a cross-encoder, measured against no reranking and against an LLM judge (whose published numbers are reproduced exactly).
 > 4. Answers with checked citations, a relevance gate, and follow-up questions.
 > 5. PDF documents.
 > 6. The web app.
@@ -27,6 +27,7 @@ Chat with your documents: answers that cite the passages they came from, built o
   - **weighted:** a weighted mix of the two scores.
 
   Search is exact and filtered to one collection before scoring. Chunks are embedded when they're missing an embedding, or when it came from a different model than the current one.
+- **Reranking** ([`src/rerank/`](src/rerank/)): a cross-encoder, [`mxbai-rerank-xsmall-v1`](https://huggingface.co/mixedbread-ai/mxbai-rerank-xsmall-v1) (Apache-2.0), reads the question and each candidate together and reorders the top 10. It runs locally through [transformers.js](https://github.com/huggingface/transformers.js) (ONNX Runtime), from files downloaded at a pinned revision and checked against their SHA-256s. The default is vector search's top 10, reranked.
 - **Model providers** ([`src/providers/`](src/providers/)): answers from Ollama, OpenAI (or any OpenAI-compatible API), or Claude; embeddings from Ollama or OpenAI.
   - Ollama embeddings run with `truncate: false`. By default Ollama silently cuts input longer than the model's context, which in rag-engineering's chunking measurements left the evidence for 9 questions unembedded. Here an over-long input is an error instead.
   - `nomic-embed-text` gets its `search_document:` and `search_query:` prefixes added automatically.
@@ -38,10 +39,14 @@ Requires Node.js 24 or newer, and [Ollama](https://ollama.com):
 ```bash
 ollama pull nomic-embed-text
 npm install
+npm run models           # the reranker, 284 MB, checksums verified
 npm run ingest -- --collection eval eval/documents/*.md
 npm run check            # lint and tests; no network needed
 npm run eval:retrieval   # retrieval on the frozen questions, against the published numbers
+npm run eval:rerank      # reranking, likewise (the LLM judge takes about 10 minutes)
 ```
+
+`npm install` brings in ONNX Runtime for the reranker, and the dependency folder comes to about 520 MB.
 
 ### The tokenizer (optional, for exact token counts)
 
@@ -74,6 +79,40 @@ Every number matched the ones [rag-engineering's hybrid-search demo](https://git
 Recorded on 2026-11-16, on an Apple M4 Pro with Node 24.16.0, Ollama 0.40.16 and `nomic-embed-text` (`0a109f422b47`). The match holds whether the chunks are embedded fresh or read back from the database. Embedding a question took a median of 8–9 ms.
 
 RRF is the default because it found the most evidence when the budget was small. Reranking, the next step, is measured on top of it.
+
+## Reranking, measured
+
+`npm run eval:rerank` reranks the first stage's top 10 or 20 candidates, then fills the budget from the new order; a chunk outside the candidates is never used. As in [rag-engineering's reranking demo](https://github.com/SnehalAgrawal/rag-engineering/tree/main/06-reranking), it builds every (question, chunk) pair in the top 20 of either first stage, which is 2,581 pairs, and scores each pair once. It compares three ways of ordering the candidates:
+
+- **first stage:** no reranking.
+- **LLM judge:** the demo's reranker. `llama3.2:3b` answers Yes or No for each pair, and the score is the log-odds of its first token.
+- **cross-encoder:** `mxbai-rerank-xsmall-v1`, new here.
+
+**The LLM judge reproduced the demo exactly.** Every published number matched: candidate recall, evidence found by budget, and evidence found by question group. So the comparison below is like for like.
+
+Evidence found for the 48 test questions:
+
+| First stage → reranker | 500 tokens | 1,000 tokens | 2,000 tokens |
+|---|---|---|---|
+| RRF, no reranking | 45 | 47 | 47 |
+| vector, no reranking | 41 | 46 | 48 |
+| vector top 10 → LLM judge | **46** | **48** | 48 |
+| vector top 10 → **cross-encoder** | 45 | **48** | 48 |
+| vector top 20 → LLM judge | 45 | 47 | 48 |
+| vector top 20 → cross-encoder | 44 | 47 | 48 |
+| RRF top 10 → LLM judge | 44 | 47 | 47 |
+| RRF top 10 → cross-encoder | 43 | 46 | 47 |
+
+What this shows:
+
+- **The cross-encoder matches the LLM judge at the default budget of 1,000 tokens.** Both find 48 of 48 when they rerank vector search's top 10. At 500 tokens the cross-encoder finds one question fewer (45 against 46).
+- **The cross-encoder is much cheaper.** It reranked 10 candidates in about 0.26 s. The LLM judge makes one call per candidate, and took 197 ms per call in this run, so about 2 s for 10. Both timings are from a run on battery power, so they're indicative only; the demo measured 166–184 ms per judge call on mains power.
+- **So the default is vector search's top 10, reranked by the cross-encoder.** It finds 48 at 1,000 tokens, against 47 for RRF without reranking.
+- **Reranking RRF's candidates made results slightly worse** with either reranker, as the demo found. RRF's order was already good where it had the evidence. That's why the app reranks vector search's candidates instead.
+- **No candidate was truncated.** The cross-encoder reads at most 512 of its own tokens per pair, and the longest of the 2,581 pairs was 503.
+- **The quantised model (q8) isn't the default, though it's a third of the size.** It found the same questions here, but its score for a passage depended on which other passages were scored in the same batch: one passage scored −1.343 alone and −1.412 or −1.427 alongside others. That's because its activations are quantised with a scale taken from the whole batch. So with it, a passage's rank could depend on the other candidates. The full-precision model gave identical scores in any batch, at the same speed. A test checks this.
+
+Recorded on 2026-11-16 on an Apple M4 Pro, on battery power, with Node 24.16.0, Ollama 0.40.16, `nomic-embed-text` (`0a109f422b47`), `llama3.2:3b` (`a80c4f17acd5`), transformers.js 4.3.2, and `mxbai-rerank-xsmall-v1` at revision `b5c6e9da`. The counts don't depend on power. The timings will be measured again on mains power for the final measurements.
 
 ## Configuration
 

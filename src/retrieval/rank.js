@@ -51,3 +51,10 @@ export function withinBudget(ranked, tokens, budget) {
   }
   return chosen;
 }
+
+/** Candidates reordered by reranker score, highest first; ties keep their first-stage order. */
+export function rerankOrder(candidates, scores) {
+  return candidates.map((index, position) => ({ index, position, score: scores[position] }))
+    .sort((a, b) => b.score - a.score || a.position - b.position)
+    .map((c) => c.index);
+}

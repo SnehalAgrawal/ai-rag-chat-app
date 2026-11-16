@@ -7,17 +7,15 @@
 // Needs the Llama 3.2 tokenizer (models/tokenizer.json, see the README), so chunks and
 // budgets are counted exactly as they were, and Ollama with nomic-embed-text.
 
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { parseArgs } from "node:util";
 import { loadConfig, loadEnvFile } from "../src/config.js";
 import { found, loadQuestions } from "../src/evaluation/evidence.js";
-import { ingest } from "../src/ingest.js";
+import { openEvalCollection } from "../src/evaluation/setup.js";
 import { createEmbeddings } from "../src/providers/index.js";
 import { BM25 } from "../src/retrieval/keyword.js";
 import { rank, withinBudget } from "../src/retrieval/rank.js";
-import { Retriever } from "../src/retrieval/retriever.js";
-import { Store } from "../src/store/store.js";
 import { loadTokenizer } from "../src/text/tokens.js";
 
 const { values: args } = parseArgs({ options: { out: { type: "string" }, db: { type: "string", default: "data/eval.db" } } });
@@ -44,25 +42,23 @@ const GROUPS = [["new", "dev"], ["new", "test"], ["04", "dev"], ["04", "test"]];
 
 loadEnvFile();
 const tokenizer = loadTokenizer();
-if (!tokenizer.exact) {
-  console.error("This comparison needs the Llama 3.2 tokenizer at models/tokenizer.json (see the README): with estimated token counts the chunks differ, so the numbers are not comparable.");
-  process.exit(1);
-}
 const config = loadConfig();
 const embeddings = createEmbeddings(config.embeddings);
 
 // The documents, ingested into their own database.
-mkdirSync(dirname(args.db), { recursive: true });
-const store = new Store(args.db);
-const documentsDir = new URL("../eval/documents/", import.meta.url);
-const documents = readdirSync(documentsDir).filter((f) => f.endsWith(".md")).sort().map((name) => ({ name, text: readFileSync(new URL(name, documentsDir), "utf8") }));
-ingest(store, "eval", documents, tokenizer);
-const retriever = new Retriever({ store, collection: "eval", embeddings });
-const prepared = await retriever.prepare();
+let store;
+let retriever;
+let prepared;
+try {
+  ({ store, retriever, embedded: prepared } = await openEvalCollection({ dbPath: args.db, tokenizer, embeddings }));
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}
 const chunks = retriever.chunks;
 const tokens = chunks.map((c) => c.tokens);
 const identifiers = new BM25(chunks.map((c) => c.text), { analyzer: "identifiers" });
-console.log(`${chunks.length} chunks, ${tokens.reduce((a, b) => a + b, 0)} tokens; embedded now: ${prepared.embedded} (${embeddings.name})`);
+console.log(`${chunks.length} chunks, ${tokens.reduce((a, b) => a + b, 0)} tokens; embedded now: ${prepared} (${embeddings.name})`);
 
 // Every question scored once (questions embedded one at a time, as a live system would).
 const sets = loadQuestions();

@@ -32,12 +32,28 @@ export function loadConfig(env = process.env) {
       // Claude only: thinking depth.
       effort: env.LLM_EFFORT ? choice(env, "LLM_EFFORT", ["low", "medium", "high", "xhigh", "max"]) : undefined,
     },
+    retrieval: retrievalSettings(env),
     embeddings: {
       provider: embeddingProvider,
       baseUrl: env.EMBEDDING_BASE_URL || EMBEDDING_DEFAULTS[embeddingProvider].baseUrl,
       model: env.EMBEDDING_MODEL || EMBEDDING_DEFAULTS[embeddingProvider].model,
       apiKey: env.EMBEDDING_API_KEY || undefined,
     },
+  };
+}
+
+/**
+ * Retrieval as measured (see the README): with a reranker, vector search's top 10 candidates
+ * reranked; without one, RRF. Reranking RRF's candidates made results slightly worse.
+ */
+function retrievalSettings(env) {
+  const reranker = choice(env, "RERANKER", ["mxbai-rerank-xsmall-v1", "llm-judge", "none"], "mxbai-rerank-xsmall-v1");
+  return {
+    reranker,
+    rerankPrecision: choice(env, "RERANK_PRECISION", ["fp32", "q8"], "fp32"),
+    candidates: integer(env, "RERANK_CANDIDATES") ?? 10,
+    method: env.RETRIEVAL_METHOD ? choice(env, "RETRIEVAL_METHOD", ["vector", "keyword", "rrf", "weighted"]) : reranker === "none" ? "rrf" : "vector",
+    budget: integer(env, "RETRIEVAL_BUDGET") ?? 1000,
   };
 }
 

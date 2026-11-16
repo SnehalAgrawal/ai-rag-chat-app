@@ -37,3 +37,11 @@ test("invalid settings are rejected with the variable's name", () => {
   assert.throws(() => loadConfig({ EMBEDDING_PROVIDER: "anthropic" }), /EMBEDDING_PROVIDER must be one of ollama, openai-compatible/);
   assert.throws(() => loadConfig({ LLM_SEED: "1.5" }), /LLM_SEED must be a whole number/);
 });
+
+test("retrieval defaults to vector search reranked by the cross-encoder; without a reranker, RRF", () => {
+  assert.deepEqual(loadConfig({}).retrieval, { reranker: "mxbai-rerank-xsmall-v1", rerankPrecision: "fp32", candidates: 10, method: "vector", budget: 1000 });
+  assert.equal(loadConfig({ RERANKER: "none" }).retrieval.method, "rrf");
+  assert.equal(loadConfig({ RERANKER: "none", RETRIEVAL_METHOD: "keyword" }).retrieval.method, "keyword");
+  assert.equal(loadConfig({ RERANKER: "llm-judge", RERANK_CANDIDATES: "20" }).retrieval.candidates, 20);
+  assert.throws(() => loadConfig({ RERANKER: "cohere" }), /RERANKER must be one of/);
+});
