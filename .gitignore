@@ -1,9 +1,8 @@
 node_modules/
 .env
-.next/
-out/
-*.log
+# The Llama 3.2 tokenizer (Meta's licence: not redistributed) and other downloaded models
+models/
+# Local databases and measurement output
+data/
+results/
 .DS_Store
-
-# Written by `next dev` (Next.js 16) on every start
-frontend/AGENTS.md

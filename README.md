@@ -1,119 +1,67 @@
-> **Archived (November 2026).** This is an early learning project from 2025, brought back to a working state and then archived as a reference. For retrieval done properly, measured and explained article by article, see [rag-engineering](https://github.com/SnehalAgrawal/rag-engineering) and the articles at [snehalagrawal.com](https://snehalagrawal.com/articles/).
+# AI RAG Chat App
 
-# RAG Chat over PDFs
+Chat with your documents: answers that cite the passages they came from, built on what [rag-engineering](https://github.com/SnehalAgrawal/rag-engineering) measured about chunking, hybrid search, and reranking. It runs locally with **no accounts and no API keys**, and OpenAI or Claude are a setting away.
 
-Upload a PDF and ask questions about it: an Express API embeds the chunks into Weaviate, and a Next.js chat UI answers with an OpenAI model, or with a local model through Ollama.
+> **Status: being rebuilt.** This branch replaces the 2025 app (Next.js, Express, Weaviate, one PDF at a time, no citations), which is still on `main`. The plan, in order:
+>
+> 1. **Foundation** (done): the chunker, document storage, ingest, and the model providers, with tests.
+> 2. Retrieval: vector and keyword search fused with RRF, checked against rag-engineering's published numbers.
+> 3. Reranking: a cross-encoder, measured against an LLM judge.
+> 4. Answers with checked citations, a relevance gate, and follow-up questions.
+> 5. PDF documents.
+> 6. The web app.
+> 7. Measurements and the README.
 
-![The chat UI after uploading the sample remote-work policy: two questions answered from the PDF, and a third (parental leave) that the model says the document does not cover](docs/screenshot.png)
+## What works now
 
-## What it does
-
-This is a small, complete retrieval-augmented generation (RAG) app:
-- **Upload.** The backend extracts the PDF's text, splits it into overlapping chunks, embeds each chunk, and stores the vectors in Weaviate.
-- **Ask.** The backend embeds the question, retrieves the three closest chunks, and asks the chat model to answer from those chunks only, admitting when the answer is not there.
-
-## How it works
-
-![Architecture: the Next.js UI calls the Express API; the API embeds text with the model provider, stores and searches vectors in Weaviate, and sends the question with the top 3 chunks to the chat model](docs/architecture.svg)
-
-- **Upload** (`POST /upload`): [`pdf-parse`](https://www.npmjs.com/package/pdf-parse) extracts the text, which is split into chunks of 500 words with a 50-word overlap ([`backend/utils/pdfParser.js`](backend/utils/pdfParser.js)). The chunks are embedded in batches of 100 and written to a Weaviate class called `DocumentChunk` with their vectors ([`backend/routes/upload.js`](backend/routes/upload.js)).
-- **Chat** (`POST /chat`): the question is embedded with the same model, Weaviate returns the 3 nearest chunks, and the chat model gets the question plus those chunks ([`backend/routes/chat.js`](backend/routes/chat.js)).
-- **Models**: one OpenAI client serves embeddings and chat ([`backend/services/openaiClient.js`](backend/services/openaiClient.js)). Because it reads `OPENAI_BASE_URL`, it also works with any OpenAI-compatible server, such as Ollama.
-- **Frontend**: a Next.js page with a PDF upload form that switches to a chat window once the upload succeeds ([`frontend/`](frontend/)).
-
-## Tech stack
-
-| Part | Technology |
-|---|---|
-| Frontend | Next.js 16 (Pages Router), React 19, axios |
-| Backend | Node.js, Express 4, multer (uploads), pdf-parse |
-| Vector database | Weaviate 1.40 (Docker), `weaviate-ts-client` |
-| Models | OpenAI API (`text-embedding-3-small` and a chat model you choose), or local models through Ollama |
+- **Chunking** ([`src/text/chunker.js`](src/text/chunker.js)): structure-aware chunks with the headings above each chunk copied in. This was the strategy that won rag-engineering's chunking comparison: 29 of 29 test questions at a 1,000-token budget. It's ported from there, and a test checks it makes exactly the same 98 chunks (10,913 tokens) on the same documents.
+- **Storage** ([`src/store/store.js`](src/store/store.js)): documents, chunks, and embeddings in one SQLite file, using Node's built-in `node:sqlite`, so nothing native needs installing.
+  - Documents are content-hashed: adding the same text again changes nothing, and changed text replaces the old chunks.
+  - Each embedding is stored with the name of the model that made it.
+  - Ids are never reused, so a citation can't silently point at different text after a document changes.
+- **Ingest:** `npm run ingest -- --collection docs path/to/*.md` (Markdown and text for now).
+- **Model providers** ([`src/providers/`](src/providers/)): answers from Ollama, OpenAI (or any OpenAI-compatible API), or Claude; embeddings from Ollama or OpenAI.
+  - Ollama embeddings run with `truncate: false`. By default Ollama silently cuts input longer than the model's context, which in rag-engineering's chunking measurements left the evidence for 9 questions unembedded. Here an over-long input is an error instead.
+  - `nomic-embed-text` gets its `search_document:` and `search_query:` prefixes added automatically.
 
 ## Run it
 
-Requirements: Node.js 20.9 or newer (tested with 24.16), Docker, and either an OpenAI API key or [Ollama](https://ollama.com).
-
-1. Start Weaviate:
-
-   ```bash
-   docker compose up -d
-   ```
-
-2. Configure and start the backend:
-
-   ```bash
-   cd backend
-   cp .env.example .env    # then edit .env (see Configuration)
-   npm ci
-   npm start               # http://localhost:4000
-   ```
-
-3. Start the frontend in a second terminal:
-
-   ```bash
-   cd frontend
-   npm ci
-   npm run dev             # http://localhost:3000
-   ```
-
-4. Open http://localhost:3000, upload a PDF (try [`samples/remote-work-policy.pdf`](samples/remote-work-policy.pdf), a short fictional policy written for this demo), and ask a question.
-
-To stop: `Ctrl+C` in both terminals, then `docker compose down` (add `-v` to delete the stored vectors).
-
-### Run without an API key (Ollama)
+Requires Node.js 24 or newer, and [Ollama](https://ollama.com):
 
 ```bash
-ollama pull llama3.2:3b
 ollama pull nomic-embed-text
+npm install
+npm run ingest -- --collection eval eval/documents/*.md
+npm run check        # lint and tests; no network needed
 ```
 
-Then use the Ollama block in `backend/.env.example` (`OPENAI_BASE_URL=http://localhost:11434/v1`, `CHAT_MODEL=llama3.2:3b`, `EMBEDDING_MODEL=nomic-embed-text`).
+### The tokenizer (optional, for exact token counts)
+
+Chunk sizes and retrieval budgets are counted in Llama 3.2 tokens, as in rag-engineering, so the measurements can be compared with its published numbers. The tokenizer file (17 MB) is under the Llama 3.2 Community License, so it isn't stored in this repository. Download the same file rag-engineering uses, pinned to a revision, and check it:
+
+```bash
+mkdir -p models
+curl -L -o models/tokenizer.json \
+  https://huggingface.co/mlx-community/Llama-3.2-1B-Instruct-4bit/resolve/08231374eeacb049a0eade7922910865b8fce912/tokenizer.json
+shasum -a 256 models/tokenizer.json   # 6b9e4e7fb171f92fd137b777cc2714bf87d11576700a1dcd7a399e7bbe39537b
+```
+
+Set `TOKENIZER_PATH` if you already have it elsewhere.
+
+Without it, tokens are estimated at four characters each. The app works the same; the chunks just differ slightly from the measured ones. The test that compares chunks with rag-engineering's is skipped without the tokenizer.
 
 ## Configuration
 
-All settings live in `backend/.env`:
+Settings come from environment variables or a `.env` file. See [`.env.example`](.env.example), which has OpenAI and Claude examples. Claude is used for answers only, because Anthropic has no embeddings API.
 
-| Variable | Required | What it does |
-|---|---|---|
-| `OPENAI_API_KEY` | yes | Your OpenAI key. For Ollama any non-empty value works. |
-| `CHAT_MODEL` | yes | The chat model that writes answers. Pick one your account can use; check [OpenAI's deprecations page](https://platform.openai.com/docs/deprecations) first. |
-| `EMBEDDING_MODEL` | no | Embedding model. Default: `text-embedding-3-small`. |
-| `OPENAI_BASE_URL` | no | Set to use an OpenAI-compatible server instead of OpenAI, e.g. `http://localhost:11434/v1` for Ollama. |
-| `WEAVIATE_HOST` | yes | Weaviate URL. Default from `docker-compose.yml`: `http://localhost:8080`. |
-| `WEAVIATE_API_KEY` | no | Only for a Weaviate instance with authentication. |
-| `PORT` | no | Backend port. Default: `4000`. |
+## Evaluation data
 
-The frontend calls `http://localhost:4000` unless `NEXT_PUBLIC_API_BASE_URL` is set.
+[`eval/`](eval/) holds rag-engineering's corpus (five fictional product documents) and its frozen question sets, copied from that repository at commit `d569efa` (MIT, same author):
+- `chunking.json`: 60 questions;
+- `hybrid-search.json`: 40 questions, also used for reranking.
 
-## What you'll see
+Every question names the passages that answer it, which is how retrieval is scored.
 
-The screenshot above is from a real run on 2026-11-15 with the sample PDF and local models:
+## Licence
 
-- **Machine:** macOS on Apple silicon, Node.js 24.16.0, Docker 29.9.3.
-- **Vector database:** Weaviate 1.40.5 (`docker-compose.yml`).
-- **Models:** Ollama 0.40.16, with `llama3.2:3b` (ID `a80c4f17acd5`, 3.2B parameters, Q4_K_M) for chat and `nomic-embed-text` (ID `0a109f422b47`) for embeddings.
-- **Frontend:** the production build (`next build && next start`), driven by headless Chrome.
-
-The answers are model output, so wording changes from run to run and between models. The sample PDF fits in one chunk, so every question receives the whole document as context.
-
-## Limitations
-
-- **One shared collection.** Every upload goes into the same `DocumentChunk` class, and questions search all uploaded documents together. Uploading the same file twice stores its chunks twice.
-- **Changing the embedding model needs a fresh index.** Vectors from different models have different sizes and are not comparable. After changing `EMBEDDING_MODEL`, run `docker compose down -v` and upload again.
-- **Simple chunking.** Chunks are counted in words, not tokens, and ignore headings, pages, and tables.
-- **No sources in the answer.** The API retrieves chunk distances but the UI does not show which passages the answer came from.
-- **No limits.** There is no maximum upload size, no authentication, and CORS is open. Run it locally only.
-- **One PDF per page load.** After an upload the form is replaced by the chat window; reload the page to upload another file.
-- **Known advisory.** `npm audit` reports a moderate `uuid` advisory through `weaviate-ts-client`, which this app's code doesn't reach. Weaviate's replacement client (`weaviate-client` v3) has a different API, and migrating to it is not done here.
-
-## Changes since the first version
-
-The first version (June 2025) no longer ran as published. These changes, made in November 2026, keep its design:
-
-- **Chat model.** The code called `gpt-4` with a fallback to `gpt-3.5-turbo`, and OpenAI shut down both on 2026-10-23. The model now comes from `CHAT_MODEL`, and a failing call is reported instead of silently retried with another model.
-- **Ollama support.** `EMBEDDING_MODEL` and `OPENAI_BASE_URL` were added so the app runs with Ollama and needs no API key.
-- **Empty index.** Asking before any upload returns `409 No documents indexed yet` instead of a 500 error.
-- **Dependencies.** Next.js was pinned to 16.4.6 (it was `latest`), React to 19.3.1, axios to 1.21.1, and multer to 2.5.0, which cleared the critical and high `npm audit` findings.
-- **Images.** Weaviate is pinned to 1.40.5 (it was `latest`), and the backend Dockerfile moved from Node 16 to Node 24.
-- **Housekeeping.** `.gitignore`, a sample PDF, an architecture diagram, and a screenshot were added.
+[MIT](LICENSE).
