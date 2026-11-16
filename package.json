@@ -12,7 +12,8 @@
     "ingest": "node scripts/ingest.js",
     "test": "node --test",
     "lint": "eslint .",
-    "check": "npm run lint && npm test"
+    "check": "npm run lint && npm test",
+    "eval:retrieval": "node scripts/eval-retrieval.js"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

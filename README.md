@@ -5,7 +5,7 @@ Chat with your documents: answers that cite the passages they came from, built o
 > **Status: being rebuilt.** This branch replaces the 2025 app (Next.js, Express, Weaviate, one PDF at a time, no citations), which is still on `main`. The plan, in order:
 >
 > 1. **Foundation** (done): the chunker, document storage, ingest, and the model providers, with tests.
-> 2. Retrieval: vector and keyword search fused with RRF, checked against rag-engineering's published numbers.
+> 2. **Retrieval** (done): vector and keyword search fused with RRF, matching rag-engineering's published numbers exactly.
 > 3. Reranking: a cross-encoder, measured against an LLM judge.
 > 4. Answers with checked citations, a relevance gate, and follow-up questions.
 > 5. PDF documents.
@@ -20,6 +20,13 @@ Chat with your documents: answers that cite the passages they came from, built o
   - Each embedding is stored with the name of the model that made it.
   - Ids are never reused, so a citation can't silently point at different text after a document changes.
 - **Ingest:** `npm run ingest -- --collection docs path/to/*.md` (Markdown and text for now).
+- **Retrieval** ([`src/retrieval/`](src/retrieval/)): four ways to rank chunks for a question, with the chosen chunks filling a token budget in rank order:
+  - **vector:** cosine similarity of embeddings;
+  - **keyword:** BM25, which returns only chunks sharing a word with the question;
+  - **rrf** (the default): reciprocal rank fusion of the two;
+  - **weighted:** a weighted mix of the two scores.
+
+  Search is exact and filtered to one collection before scoring. Chunks are embedded when they're missing an embedding, or when it came from a different model than the current one.
 - **Model providers** ([`src/providers/`](src/providers/)): answers from Ollama, OpenAI (or any OpenAI-compatible API), or Claude; embeddings from Ollama or OpenAI.
   - Ollama embeddings run with `truncate: false`. By default Ollama silently cuts input longer than the model's context, which in rag-engineering's chunking measurements left the evidence for 9 questions unembedded. Here an over-long input is an error instead.
   - `nomic-embed-text` gets its `search_document:` and `search_query:` prefixes added automatically.
@@ -32,7 +39,8 @@ Requires Node.js 24 or newer, and [Ollama](https://ollama.com):
 ollama pull nomic-embed-text
 npm install
 npm run ingest -- --collection eval eval/documents/*.md
-npm run check        # lint and tests; no network needed
+npm run check            # lint and tests; no network needed
+npm run eval:retrieval   # retrieval on the frozen questions, against the published numbers
 ```
 
 ### The tokenizer (optional, for exact token counts)
@@ -49,6 +57,23 @@ shasum -a 256 models/tokenizer.json   # 6b9e4e7fb171f92fd137b777cc2714bf87d11576
 Set `TOKENIZER_PATH` if you already have it elsewhere.
 
 Without it, tokens are estimated at four characters each. The app works the same; the chunks just differ slightly from the measured ones. The test that compares chunks with rag-engineering's is skipped without the tokenizer.
+
+## Retrieval, checked against the published numbers
+
+`npm run eval:retrieval` runs rag-engineering's 100 frozen questions through this app's own code: its ingest, store, embeddings and retriever. It counts a question as found when every passage of one of its accepted answers is inside the chunks that fit the budget. It needs the tokenizer (above) and Ollama with `nomic-embed-text`.
+
+Every number matched the ones [rag-engineering's hybrid-search demo](https://github.com/SnehalAgrawal/rag-engineering/tree/main/05-hybrid-search) published for the same documents and model (35 of 35). Here are the 48 test questions, by budget:
+
+| Method | 500 tokens | 1,000 tokens | 2,000 tokens |
+|---|---|---|---|
+| vector | 41 | 46 | 48 |
+| keyword (BM25) | 41 | 45 | 46 |
+| **RRF** | **45** | **47** | 47 |
+| weighted (alpha 0.8) | 43 | 46 | 48 |
+
+Recorded on 2026-11-16, on an Apple M4 Pro with Node 24.16.0, Ollama 0.40.16 and `nomic-embed-text` (`0a109f422b47`). The match holds whether the chunks are embedded fresh or read back from the database. Embedding a question took a median of 8–9 ms.
+
+RRF is the default because it found the most evidence when the budget was small. Reranking, the next step, is measured on top of it.
 
 ## Configuration
 
