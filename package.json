@@ -1,5 +1,5 @@
 {
-  "name": "ai-rag-chat-app",
+  "name": "chat-app-with-rag",
   "version": "0.1.0",
   "description": "Chat with your documents: hybrid search, reranking, and answers that cite their sources, runnable locally with no accounts, measured on frozen question sets.",
   "license": "MIT",

@@ -1,4 +1,4 @@
-# AI RAG Chat App
+# Chat App with RAG
 
 Chat with your documents. Every answer cites the passages it came from, and when the documents don't hold the answer, the app says so. It's built on what [rag-engineering](https://github.com/SnehalAgrawal/rag-engineering) measured about chunking, hybrid search, and reranking, and it runs on a laptop with **no accounts and no API keys**. OpenAI or Claude are a setting away.
 
@@ -266,7 +266,7 @@ Every question names the passages that answer it, which is how retrieval is scor
 
 ## History
 
-Until November 2026 this repository held a simpler app: Next.js, Express and Weaviate, one PDF at a time, word-based chunks, top-3 vector search, and no citations. It's preserved at commit [`f80e8ae`](https://github.com/SnehalAgrawal/ai-rag-chat-app/tree/f80e8aec4b0e085eb7a6381c6c1ac6b2e4ac5874). This version replaced it, step by step, on what rag-engineering measured.
+Until November 2026 this repository held a simpler app: Next.js, Express and Weaviate, one PDF at a time, word-based chunks, top-3 vector search, and no citations. It's preserved at commit [`f80e8ae`](https://github.com/SnehalAgrawal/chat-app-with-rag/tree/f80e8aec4b0e085eb7a6381c6c1ac6b2e4ac5874). This version replaced it, step by step, on what rag-engineering measured.
 
 ## Licence
 
