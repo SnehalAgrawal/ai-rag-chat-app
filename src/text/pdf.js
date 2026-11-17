@@ -3,7 +3,7 @@
 // first), lines wrapped inside a paragraph are joined back into one line, and blocks are
 // separated by blank lines.
 //
-// Tables: a wide gap inside a line separates columns. Within one table row, pieces that
+// Tables: a wide gap inside a line (over 0.9 × the font size) separates columns. Within one table row, pieces that
 // start at the same position belong to one cell, so a cell that wraps onto a second line is
 // joined top to bottom, then the cells are joined with " | ". Joining each visual line left
 // to right instead interleaves the cells ("...signed with an Add the identity provider's
@@ -16,6 +16,7 @@ import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 
 const HEADING_RATIO = 1.15; // a line at least 15% larger than the body text is a heading
 const MAX_HEADING_LEVELS = 3;
+const COLUMN_GAP = 0.9; // × the font size: a wider gap inside a line separates table columns
 
 /**
  * @param {Uint8Array} data  the PDF file's bytes
@@ -64,9 +65,11 @@ export function pageLines(items, page) {
       let end = null;
       for (const part of parts) {
         const gap = end === null ? 0 : part.x - end;
-        // A word space is about a quarter of the font size; a table cell's padding and border
-        // are about half or more. So a gap over 0.45 × the font size starts a new column.
-        if (!current || gap > row.size * 0.45) {
+        // A gap over 0.9 × the font size starts a new column. Measured, as fractions of the
+        // font size: between words, 0 to 0.6 (0.6 is a monospaced font's space); between table
+        // cells in the evaluation PDFs, 1.15 or more. (At 0.45, every word of a monospaced
+        // PDF became a column of its own.)
+        if (!current || gap > row.size * COLUMN_GAP) {
           current = { x: part.x, text: "" };
           segments.push(current);
         } else if (gap > row.size * 0.15 && !current.text.endsWith(" ") && !part.str.startsWith(" ")) {

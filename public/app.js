@@ -93,16 +93,20 @@ async function loadDocuments() {
 async function uploadFiles(files) {
   if (!state.collection || !files.length) return;
   const status = $("#upload-status");
-  for (const file of files) {
-    status.textContent = `Adding ${file.name}…`;
+  // Each file's outcome is kept, so an error isn't overwritten by the next file's success.
+  const outcomes = [];
+  for (const [i, file] of [...files].entries()) {
+    status.textContent = [...outcomes, `Adding ${file.name}${files.length > 1 ? ` (${i + 1} of ${files.length})` : ""}…`].join("\n");
     try {
       const result = await api(`${collectionPath(state.collection)}/documents/${encodeURIComponent(file.name)}`, { method: "PUT", body: file });
-      status.textContent = `${file.name}: ${result.outcome}, ${result.chunks} chunks.`;
+      outcomes.push(`${file.name}: ${result.outcome}, ${result.chunks} chunks`);
     } catch (error) {
-      status.textContent = `${file.name}: ${error.message}`;
+      outcomes.push(`${file.name}: ${error.message}`);
     }
     state.documentTexts.delete(`${state.collection}/${file.name}`);
+    await loadDocuments().catch(() => {});
   }
+  status.textContent = outcomes.join("\n");
   await loadCollections(state.collection);
 }
 

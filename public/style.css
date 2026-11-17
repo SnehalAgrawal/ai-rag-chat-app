@@ -97,6 +97,7 @@ button:disabled { opacity: 0.55; cursor: progress; }
 .dropzone.over { border-color: var(--accent); }
 .dropzone input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .dropzone strong { color: var(--accent); }
+#upload-status { white-space: pre-line; overflow-wrap: anywhere; }
 
 .thread { list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; flex: 1; align-content: start; }
 .empty { margin: auto 0; text-align: center; }

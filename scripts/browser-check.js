@@ -6,7 +6,7 @@
 //
 // Needs Google Chrome, Ollama (nomic-embed-text, llama3.2:3b), and `npm run models`.
 
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
@@ -52,9 +52,15 @@ try {
   await page.fill("#new-collection-name", "handbook");
   await page.click("#new-collection-form button[type=submit]");
   await page.waitForSelector("#collection option[value=handbook]", { state: "attached" });
-  await page.setInputFiles("#files", files);
+  // An unsupported file among them: its error must still be shown once the others are in.
+  const unsupported = join(dir, "notes.docx");
+  writeFileSync(unsupported, "not a supported format");
+  await page.setInputFiles("#files", [files[0], unsupported, ...files.slice(1)]);
   await page.waitForFunction(() => globalThis.document.querySelectorAll("#documents li .name").length === 5, null, { timeout: 120_000 });
+  await page.waitForFunction(() => !globalThis.document.querySelector("#upload-status").textContent.includes("Adding"), null, { timeout: 120_000 });
   check("five documents uploaded, one of them a PDF", true, (await page.$$eval("#documents .name", (n) => n.map((x) => x.textContent))).join(", "));
+  const uploadStatus = await page.$eval("#upload-status", (n) => n.textContent);
+  check("an unsupported file's error stays visible after the other uploads", /notes\.docx: /.test(uploadStatus) && (uploadStatus.match(/: added/g) ?? []).length === 5, JSON.stringify(uploadStatus));
 
   const askAndWait = async (question) => {
     const before = await page.$$eval(".turn-assistant", (n) => n.length);

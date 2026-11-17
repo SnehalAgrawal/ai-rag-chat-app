@@ -20,7 +20,9 @@
     "tune:gate": "node scripts/tune-gate.js",
     "eval:answers": "node scripts/eval-answers.js",
     "eval:pdf": "node scripts/eval-pdf.js",
-    "check:browser": "node scripts/browser-check.js"
+    "check:browser": "node scripts/browser-check.js",
+    "measure:latency": "node scripts/measure-latency.js",
+    "record:demo": "node scripts/record-demo.js"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
