@@ -82,12 +82,16 @@ export class Retriever {
     let ranked = this.ranking(method, scores);
     const timings = { ...scores.timings };
     let rerankScores = null;
+    // The best scores this search saw, for the relevance gate: over every chunk for vector
+    // similarity, over the candidates for the reranker.
+    const best = { vector: scores.vector.length ? Math.max(...scores.vector) : -Infinity, rerank: null };
     if (rerank?.reranker) {
       const candidates = ranked.slice(0, rerank.candidates ?? 10);
       const started = performance.now();
       const values = await rerank.reranker.score(question, candidates.map((i) => this.chunks[i].text), { signal });
       timings.rerankMs = performance.now() - started;
       rerankScores = new Map(candidates.map((index, k) => [index, values[k]]));
+      best.rerank = values.length ? Math.max(...values) : -Infinity;
       ranked = rerankOrder(candidates, values);
     }
     const chosen = withinBudget(ranked, this.chunks.map((c) => c.tokens), budget);
@@ -101,6 +105,6 @@ export class Retriever {
         ...(rerankScores ? { rerankScore: rerankScores.get(i) } : {}),
       };
     });
-    return { chunks, tokens: chunks.reduce((n, c) => n + c.tokens, 0), timings };
+    return { chunks, tokens: chunks.reduce((n, c) => n + c.tokens, 0), best, timings };
   }
 }

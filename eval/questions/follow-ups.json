@@ -1,0 +1,130 @@
+{
+ "_comment": "Two-turn conversations whose second question only makes sense after the first. Written and frozen on 2026-11-17, before any rewrite or answer run. The evidence is for the second question; every passage was copied from the documents and checked to appear in them exactly. Used to measure whether rewriting a follow-up into a stand-alone question helps retrieval.",
+ "conversations": [
+  {
+   "id": "f01",
+   "split": "dev",
+   "turns": [
+    "How much does the Pro plan cost per month?",
+    "And per year?"
+   ],
+   "evidence": [
+    [
+     {
+      "text": "| Annual price | $100 | $250 |"
+     }
+    ]
+   ]
+  },
+  {
+   "id": "f02",
+   "split": "dev",
+   "turns": [
+    "How do I suspend a member?",
+    "Do they keep their tasks?"
+   ],
+   "evidence": [
+    [
+     {
+      "text": "but they keep their role, their project memberships, and their task assignments"
+     }
+    ]
+   ]
+  },
+  {
+   "id": "f03",
+   "split": "dev",
+   "turns": [
+    "What does the IP allowlist do?",
+    "Which plan includes it?"
+   ],
+   "evidence": [
+    [
+     {
+      "text": "| IP allowlist | No | Yes |"
+     }
+    ],
+    [
+     {
+      "text": "On the Pro plan, Admins can limit sign-ins and API requests to a list of IP address ranges"
+     }
+    ]
+   ]
+  },
+  {
+   "id": "f04",
+   "split": "dev",
+   "turns": [
+    "How long do you keep our support conversations?",
+    "Can we have them deleted sooner?"
+   ],
+   "evidence": [
+    [
+     {
+      "text": "A customer can ask for its support conversations to be deleted sooner."
+     }
+    ]
+   ]
+  },
+  {
+   "id": "f05",
+   "split": "test",
+   "turns": [
+    "How do I require two-factor authentication for everyone?",
+    "Are SMS codes supported?"
+   ],
+   "evidence": [
+    [
+     {
+      "text": "Only authenticator apps are supported; SMS codes are not."
+     }
+    ]
+   ]
+  },
+  {
+   "id": "f06",
+   "split": "test",
+   "turns": [
+    "What is the API rate limit on the Basic plan?",
+    "Which response header shows how many requests are left?"
+   ],
+   "evidence": [
+    [
+     {
+      "text": "| X-RateLimit-Remaining | How many requests are left in the current window |"
+     }
+    ]
+   ]
+  },
+  {
+   "id": "f07",
+   "split": "test",
+   "turns": [
+    "Where is our organization's data stored?",
+    "Can we change that later?"
+   ],
+   "evidence": [
+    [
+     {
+      "text": "It is shown under Settings > Organization > General and can't be changed."
+     }
+    ]
+   ]
+  },
+  {
+   "id": "f08",
+   "split": "test",
+   "turns": [
+    "How do webhooks work?",
+    "How do I check that a delivery really came from you?"
+   ],
+   "evidence": [
+    [
+     {
+      "text": "Every delivery is signed, so your endpoint can check that it came from us and wasn't replayed."
+     }
+    ]
+   ]
+  }
+ ]
+}

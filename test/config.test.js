@@ -45,3 +45,10 @@ test("retrieval defaults to vector search reranked by the cross-encoder; without
   assert.equal(loadConfig({ RERANKER: "llm-judge", RERANK_CANDIDATES: "20" }).retrieval.candidates, 20);
   assert.throws(() => loadConfig({ RERANKER: "cohere" }), /RERANKER must be one of/);
 });
+
+test("answers default to the measured choices: numbered citations, rewriting on, no gate", () => {
+  assert.deepEqual(loadConfig({}).answers, { citations: "numbers", rewrite: true, gate: "off" });
+  assert.deepEqual(loadConfig({ CITATIONS: "quotes", REWRITE: "off", GATE: "vector" }).answers, { citations: "quotes", rewrite: false, gate: "vector" });
+  assert.throws(() => loadConfig({ GATE: "on" }), /GATE must be one of off, vector, rerank/);
+  assert.throws(() => loadConfig({ REWRITE: "maybe" }), /REWRITE must be true or false/);
+});

@@ -1,0 +1,15 @@
+{
+  "_comment": "Relevance-gate thresholds, written by scripts/tune-gate.js. Rule: the highest threshold that blocks at most 1% of the answerable development questions (rag-engineering 03's rule). A question is declined without asking the model when its best score is below the threshold.",
+  "thresholds": {
+    "rerank:cross-encoder:mxbai-rerank-xsmall-v1:fp32": {
+      "threshold": -2.648465156555176,
+      "chosenOn": "52 answerable and 10 not-in-docs development questions",
+      "date": "2026-11-16"
+    },
+    "vector:ollama:nomic-embed-text": {
+      "threshold": 0.5942475886485867,
+      "chosenOn": "52 answerable and 10 not-in-docs development questions",
+      "date": "2026-11-16"
+    }
+  }
+}

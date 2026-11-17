@@ -6,6 +6,8 @@
  * @property {string} name
  * @property {(messages: { role: string, content: string }[], options?: { signal?: AbortSignal }) => AsyncIterable<string>} stream
  *   Streams the reply's text. A "system" message, if any, comes first.
+ * @property {(messages: { role: string, content: string }[], options?: { schema?: object, signal?: AbortSignal }) => Promise<{ text: string, stopReason?: string, usage?: { inputTokens?: number, outputTokens?: number } }>} complete
+ *   One whole reply; with a JSON schema, the reply is JSON that matches it.
  */
 
 /**

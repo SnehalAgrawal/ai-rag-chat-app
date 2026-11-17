@@ -1,0 +1,105 @@
+{
+ "_comment": "Questions the documents do not answer: plausible for this product, next to topics the documents cover. Written and frozen on 2026-11-17, before any answer, relevance-gate, or rewrite run. Each was checked by searching the five documents for its key terms (none found); topics the documents turned out to cover (mobile apps, CSV export, PayPal, restoring deleted tasks, interface languages, guests, currencies, version 7.0, security keys, recurring tasks, imports, the board view) were dropped. Dev questions choose the relevance-gate threshold; test questions report it.",
+ "questions": [
+  {
+   "id": "u01",
+   "split": "dev",
+   "question": "Do you offer a discount for nonprofits or schools?"
+  },
+  {
+   "id": "u02",
+   "split": "dev",
+   "question": "Does the API have a GraphQL endpoint?"
+  },
+  {
+   "id": "u03",
+   "split": "dev",
+   "question": "Is there a dark mode?"
+  },
+  {
+   "id": "u04",
+   "split": "dev",
+   "question": "Can I connect the app to Slack so new tasks are posted to a channel?"
+  },
+  {
+   "id": "u05",
+   "split": "dev",
+   "question": "Is the product HIPAA compliant?"
+  },
+  {
+   "id": "u06",
+   "split": "dev",
+   "question": "Is there a desktop app for Windows?"
+  },
+  {
+   "id": "u07",
+   "split": "dev",
+   "question": "Can people sign in with their Google account without setting up SSO?"
+  },
+  {
+   "id": "u08",
+   "split": "dev",
+   "question": "Is there a built-in timer for tracking time spent on tasks?"
+  },
+  {
+   "id": "u09",
+   "split": "dev",
+   "question": "Do you have a referral program that gives credit for inviting other companies?"
+  },
+  {
+   "id": "u10",
+   "split": "dev",
+   "question": "Can I use the app offline, without an internet connection?"
+  },
+  {
+   "id": "u11",
+   "split": "test",
+   "question": "Do you offer an uptime SLA with service credits?"
+  },
+  {
+   "id": "u12",
+   "split": "test",
+   "question": "Is there an official Python client library for the API?"
+  },
+  {
+   "id": "u13",
+   "split": "test",
+   "question": "Can I connect it to Zapier?"
+  },
+  {
+   "id": "u14",
+   "split": "test",
+   "question": "Can I see my tasks in a calendar view?"
+  },
+  {
+   "id": "u15",
+   "split": "test",
+   "question": "Is there a Gantt chart for project timelines?"
+  },
+  {
+   "id": "u16",
+   "split": "test",
+   "question": "Do you publish a public product roadmap?"
+  },
+  {
+   "id": "u17",
+   "split": "test",
+   "question": "Can I start a new project from a template?"
+  },
+  {
+   "id": "u18",
+   "split": "test",
+   "question": "Do you offer student pricing?"
+  },
+  {
+   "id": "u19",
+   "split": "test",
+   "question": "Can I change the colour theme of the workspace?"
+  },
+  {
+   "id": "u20",
+   "split": "test",
+   "question": "Can tasks be grouped into swimlanes by assignee?"
+  }
+ ]
+}

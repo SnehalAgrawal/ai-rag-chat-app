@@ -15,7 +15,9 @@
     "check": "npm run lint && npm test",
     "eval:retrieval": "node scripts/eval-retrieval.js",
     "models": "node scripts/download-models.js",
-    "eval:rerank": "node scripts/eval-rerank.js"
+    "eval:rerank": "node scripts/eval-rerank.js",
+    "tune:gate": "node scripts/tune-gate.js",
+    "eval:answers": "node scripts/eval-answers.js"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

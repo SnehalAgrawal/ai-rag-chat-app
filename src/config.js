@@ -23,8 +23,9 @@ export function loadConfig(env = process.env) {
       baseUrl: env.LLM_BASE_URL || LLM_DEFAULTS[llmProvider].baseUrl,
       model: env.LLM_MODEL || LLM_DEFAULTS[llmProvider].model,
       apiKey: env.LLM_API_KEY || undefined,
+      // 0 by default: answers should follow the documents, and runs should repeat.
       // Ignored by Claude, whose current models reject sampling parameters.
-      temperature: number(env, "LLM_TEMPERATURE"),
+      temperature: number(env, "LLM_TEMPERATURE") ?? 0,
       seed: integer(env, "LLM_SEED"),
       // Each provider has its own default (1,024; 16,000 for Claude, whose thinking counts against it).
       maxTokens: integer(env, "LLM_MAX_TOKENS"),
@@ -33,6 +34,15 @@ export function loadConfig(env = process.env) {
       effort: env.LLM_EFFORT ? choice(env, "LLM_EFFORT", ["low", "medium", "high", "xhigh", "max"]) : undefined,
     },
     retrieval: retrievalSettings(env),
+    // As measured on the development questions (see the README): numbered citations (quotes
+    // cited the evidence more often but invented more answers to unanswerable questions),
+    // follow-ups rewritten, and no relevance gate (it never caught an unanswerable question
+    // the model would have answered, and the reranker-score gate blocked answerable ones).
+    answers: {
+      citations: choice(env, "CITATIONS", ["numbers", "quotes"], "numbers"),
+      rewrite: boolean(env, "REWRITE", true),
+      gate: choice(env, "GATE", ["off", "vector", "rerank"], "off"),
+    },
     embeddings: {
       provider: embeddingProvider,
       baseUrl: env.EMBEDDING_BASE_URL || EMBEDDING_DEFAULTS[embeddingProvider].baseUrl,
@@ -70,6 +80,14 @@ function choice(env, name, allowed, fallback) {
   const value = env[name] || fallback;
   if (!allowed.includes(value)) throw new Error(`${name} must be one of ${allowed.join(", ")} (got "${value}")`);
   return value;
+}
+
+function boolean(env, name, fallback) {
+  const value = env[name]?.trim().toLowerCase();
+  if (!value) return fallback;
+  if (["1", "true", "yes", "on"].includes(value)) return true;
+  if (["0", "false", "no", "off"].includes(value)) return false;
+  throw new Error(`${name} must be true or false (got "${env[name]}")`);
 }
 
 function number(env, name) {

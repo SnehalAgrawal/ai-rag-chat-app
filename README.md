@@ -7,7 +7,7 @@ Chat with your documents: answers that cite the passages they came from, built o
 > 1. **Foundation** (done): the chunker, document storage, ingest, and the model providers, with tests.
 > 2. **Retrieval** (done): vector and keyword search fused with RRF, matching rag-engineering's published numbers exactly.
 > 3. **Reranking** (done): a cross-encoder, measured against no reranking and against an LLM judge (whose published numbers are reproduced exactly).
-> 4. Answers with checked citations, a relevance gate, and follow-up questions.
+> 4. **Answers** (done): checked citations, follow-up questions, and a relevance gate (measured, and off by default).
 > 5. PDF documents.
 > 6. The web app.
 > 7. Measurements and the README.
@@ -113,6 +113,53 @@ What this shows:
 - **The quantised model (q8) isn't the default, though it's a third of the size.** It found the same questions here, but its score for a passage depended on which other passages were scored in the same batch: one passage scored −1.343 alone and −1.412 or −1.427 alongside others. That's because its activations are quantised with a scale taken from the whole batch. So with it, a passage's rank could depend on the other candidates. The full-precision model gave identical scores in any batch, at the same speed. A test checks this.
 
 Recorded on 2026-11-16 on an Apple M4 Pro, on battery power, with Node 24.16.0, Ollama 0.40.16, `nomic-embed-text` (`0a109f422b47`), `llama3.2:3b` (`a80c4f17acd5`), transformers.js 4.3.2, and `mxbai-rerank-xsmall-v1` at revision `b5c6e9da`. The counts don't depend on power. The timings will be measured again on mains power for the final measurements.
+
+## Answers, measured
+
+[`src/answer/`](src/answer/) answers a question in four steps:
+1. **Rewrite a follow-up** into a stand-alone question, so "Can we change that later?" retrieves the right passage.
+2. **Retrieve and rerank** the excerpts.
+3. **Answer:** the model replies in JSON with `answered`, `answer`, and the numbers of the excerpts it used.
+4. **Check the citations:** each must be the number of an excerpt the model was actually given. An answer with no valid citation is flagged `uncited`, not shown as sourced.
+
+The prompt is rag-engineering 04's `docs-v1`, which was measured on these documents, with numbered excerpts and citations added (`docs-cited-v1`). The prompts are versioned in [`prompts.json`](src/answer/prompts.json).
+
+Two new question sets were written for this step, and frozen before any answer was generated:
+- **20 questions the documents don't answer** ([`not-in-docs.json`](eval/questions/not-in-docs.json)), all near misses, such as a calendar view or a Python client library. Draft questions the documents turned out to answer were dropped.
+- **8 two-turn conversations** ([`follow-ups.json`](eval/questions/follow-ups.json)).
+
+Choices were made on the development questions, and the results are reported on the test questions. `npm run eval:answers -- --split test` reproduces them: temperature 0 and a fixed seed give the same 66 replies on every run.
+
+**Results on the test questions**, using `llama3.2:3b` (local), the default retrieval (vector top 10, reranked, 1,000 tokens), numbered citations, and no gate. The replies were labelled by reading each one against the question's reference answer, by Claude (the AI assistant that wrote this code), and haven't yet been reviewed by the repository's owner. The labels, and a note for each reply that isn't correct, are in [`eval/labels/answers-test.json`](eval/labels/answers-test.json), keyed to a hash of the exact reply.
+
+| 48 answerable questions | |
+|---|---|
+| correct | 31 |
+| partly correct (missing a detail the reference has) | 6 |
+| wrong | 7 |
+| declined | 4 |
+
+| 10 questions the documents don't answer | |
+|---|---|
+| declined | 7 |
+| answered anyway (all three invented) | 3 |
+
+What these results show:
+
+- **The errors are the model's, not retrieval's.** The evidence was in the excerpts for all 48 answerable questions. The wrong answers misread an excerpt that was there: for example, saying the audit log isn't kept after a downgrade when the excerpt says it is.
+- **The same comparison as rag-engineering 04.** On its 29 test questions, its pipeline with `docs-v1` got 22 correct, 2 wrong, and 5 declined. This pipeline gets 23 correct, 4 wrong, and 2 declined: it answers more often, and is wrong a little more often.
+- **The model doesn't always cite the excerpt it used.** Every citation number was valid, but the cited excerpts contained the evidence for only 27 of the 44 answered questions. Many of the other answers were right but cited a neighbouring excerpt.
+  - Asking for **exact quotes instead of numbers** (`CITATIONS=quotes`, prompt `docs-quoted-v1`) makes a citation checkable by construction, because each quote is found in the excerpt it came from. On the development questions it raised cited evidence from 33 to 38 of 50. But it also doubled the invented answers to unanswerable questions, from 2 to 4 of 10, and was slower (median 2.1 s against 1.5 s). The rule fixed before the comparison kept numbers.
+- **The relevance gate is off by default.** It declines a question without asking the model when even the best excerpt scores below a threshold. The threshold was tuned on the development questions: the highest that blocks no answerable one.
+  - **On the development questions, neither gate caught an unanswerable question the model would have answered.** Every one it blocked, the model declined anyway, which rag-engineering 03 also found.
+  - **On the test questions:**
+    - the gate on the best reranker score would have caught 2 invented answers, but wrongly blocked 3 answerable questions that were answered correctly or partly;
+    - the gate on vector similarity would have caught 1, and blocked nothing it shouldn't.
+
+  `GATE=vector` turns it on.
+- **Rewriting follow-ups** retrieved the evidence for 7 of the 8 conversations, against 6 when the follow-up was used as asked. That's too few to show an effect. The one change it made mattered, though: "Can we change that later?" became "Can we change the data region later?", and a confident wrong answer about something else became a decline. The 3B model sometimes left a follow-up unchanged ("And per year?").
+
+An answer took a median of 1.5 s on mains power: an Apple M4 Pro, Ollama 0.40.16, `llama3.2:3b` (`a80c4f17acd5`), recorded on 2026-11-17. A larger model, such as OpenAI's or Claude through `LLM_PROVIDER`, may misread less often. That hasn't been measured here yet.
 
 ## Configuration
 

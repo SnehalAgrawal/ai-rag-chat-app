@@ -155,3 +155,30 @@ test("a model name is required", () => {
   assert.throws(() => ollamaLLM({ baseUrl }), /LLM_MODEL is required/);
   assert.throws(() => openAICompatibleLLM({ baseUrl }), /LLM_MODEL is required/);
 });
+
+const SCHEMA = { type: "object", properties: { answered: { type: "boolean" } }, required: ["answered"], additionalProperties: false };
+
+test("ollama complete(): one reply constrained by `format`, with token counts", async () => {
+  requests = [];
+  respond = (req, res) => res.end(JSON.stringify({ message: { role: "assistant", content: '{"answered":true}' }, done_reason: "stop", prompt_eval_count: 120, eval_count: 6 }));
+  const reply = await ollamaLLM({ baseUrl, model: "llama3.2:3b", temperature: 0 }).complete([{ role: "user", content: "Hi" }], { schema: SCHEMA });
+  assert.deepEqual(reply, { text: '{"answered":true}', stopReason: "stop", usage: { inputTokens: 120, outputTokens: 6 } });
+  assert.equal(requests[0].body.stream, false);
+  assert.deepEqual(requests[0].body.format, SCHEMA);
+  assert.equal(requests[0].body.options.temperature, 0);
+});
+
+test("openai-compatible complete(): strict json_schema response format", async () => {
+  requests = [];
+  respond = (req, res) => res.end(JSON.stringify({ choices: [{ message: { content: '{"answered":false}' }, finish_reason: "stop" }], usage: { prompt_tokens: 50, completion_tokens: 5 } }));
+  const reply = await openAICompatibleLLM({ baseUrl, apiKey: "k", model: "gpt-x" }).complete([{ role: "user", content: "Hi" }], { schema: SCHEMA });
+  assert.equal(reply.text, '{"answered":false}');
+  assert.deepEqual(reply.usage, { inputTokens: 50, outputTokens: 5 });
+  assert.deepEqual(requests[0].body.response_format, { type: "json_schema", json_schema: { name: "reply", schema: SCHEMA, strict: true } });
+  assert.equal(requests[0].body.stream, undefined);
+});
+
+test("openai-compatible complete(): a refusal is an error", async () => {
+  respond = (req, res) => res.end(JSON.stringify({ choices: [{ message: { content: null, refusal: "I can't help with that." } }] }));
+  await assert.rejects(openAICompatibleLLM({ baseUrl, model: "m" }).complete([], { schema: SCHEMA }), /refused/);
+});

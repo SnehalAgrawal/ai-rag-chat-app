@@ -18,30 +18,42 @@ export const DEFAULT_CLAUDE_MODEL = "claude-opus-5-5";
 /** @returns {import("../types.js").LLMProvider} */
 export function anthropicLLM({ apiKey, baseUrl, model = DEFAULT_CLAUDE_MODEL, maxTokens = 16000, effort = "medium", timeoutMs = 120_000, client } = {}) {
   const anthropic = client ?? new Anthropic({ ...(apiKey ? { apiKey } : {}), ...(baseUrl ? { baseURL: baseUrl } : {}), timeout: timeoutMs });
+  const request = (messages, format) => {
+    const system = messages.filter((m) => m.role === "system").map((m) => m.content).join("\n\n");
+    const turns = messages.filter((m) => m.role !== "system").map(({ role, content }) => ({ role, content }));
+    return {
+      model,
+      max_tokens: maxTokens,
+      ...(system ? { system } : {}),
+      messages: turns,
+      output_config: { effort, ...(format ? { format } : {}) },
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+    };
+  };
+  const declined = (message) =>
+    message.stop_reason === "refusal" ? new Error(`anthropic: the request was declined (${message.stop_details?.category ?? "no category"})`) : null;
   return {
     name: `anthropic:${model}`,
+    /** One reply; with a schema, as JSON (structured outputs, output_config.format). Streamed, then collected. */
+    async complete(messages, { schema, signal } = {}) {
+      const stream = anthropic.beta.messages.stream(request(messages, schema ? { type: "json_schema", schema } : null), { signal });
+      const message = await stream.finalMessage();
+      const error = declined(message);
+      if (error) throw error;
+      return {
+        text: message.content.filter((b) => b.type === "text").map((b) => b.text).join(""),
+        stopReason: message.stop_reason,
+        usage: { inputTokens: message.usage?.input_tokens, outputTokens: message.usage?.output_tokens },
+      };
+    },
     async *stream(messages, { signal } = {}) {
-      const system = messages.filter((m) => m.role === "system").map((m) => m.content).join("\n\n");
-      const turns = messages.filter((m) => m.role !== "system").map(({ role, content }) => ({ role, content }));
-      const stream = anthropic.beta.messages.stream(
-        {
-          model,
-          max_tokens: maxTokens,
-          ...(system ? { system } : {}),
-          messages: turns,
-          output_config: { effort },
-          betas: ["server-side-fallback-2026-07-01"],
-          fallbacks: "default",
-        },
-        { signal },
-      );
+      const stream = anthropic.beta.messages.stream(request(messages), { signal });
       for await (const event of stream) {
         if (event.type === "content_block_delta" && event.delta.type === "text_delta") yield event.delta.text;
       }
-      const message = await stream.finalMessage();
-      if (message.stop_reason === "refusal") {
-        throw new Error(`anthropic: the request was declined (${message.stop_details?.category ?? "no category"})`);
-      }
+      const error = declined(await stream.finalMessage());
+      if (error) throw error;
     },
   };
 }

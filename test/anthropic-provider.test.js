@@ -22,8 +22,8 @@ before(async () => {
     const message = { id: "msg_1", type: "message", role: "assistant", model: last.body.model, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 10, output_tokens: 0 } };
     res.write(sse("message_start", { message }));
     res.write(sse("content_block_start", { index: 0, content_block: { type: "text", text: "" } }));
-    res.write(sse("content_block_delta", { index: 0, delta: { type: "text_delta", text: "Our clinic opens" } }));
-    res.write(sse("content_block_delta", { index: 0, delta: { type: "text_delta", text: " at nine." } }));
+    const parts = last.body.output_config?.format ? ['{"answered":', "true}"] : ["Our clinic opens", " at nine."];
+    for (const text of parts) res.write(sse("content_block_delta", { index: 0, delta: { type: "text_delta", text } }));
     res.write(sse("content_block_stop", { index: 0 }));
     res.write(sse("message_delta", { delta: { stop_reason: stopReason, stop_sequence: null, ...(stopReason === "refusal" ? { stop_details: { type: "refusal", category: "cyber", explanation: "test" } } : {}) }, usage: { output_tokens: 6 } }));
     res.end(sse("message_stop", {}));
@@ -79,4 +79,21 @@ test("an aborted request (barge-in) stops instead of streaming", async () => {
     assert.match(error.name + error.message, /Abort/i);
     return true;
   });
+});
+
+test("complete() asks for structured output with the schema and returns the JSON text", async () => {
+  stopReason = "end_turn";
+  const schema = { type: "object", properties: { answered: { type: "boolean" } }, required: ["answered"], additionalProperties: false };
+  const llm = anthropicLLM({ apiKey: "sk-ant-test", baseUrl });
+  const reply = await llm.complete([{ role: "system", content: "Answer in JSON." }, { role: "user", content: "Is it open?" }], { schema });
+  assert.equal(reply.text, '{"answered":true}');
+  assert.equal(reply.stopReason, "end_turn");
+  assert.deepEqual(last.body.output_config, { effort: "medium", format: { type: "json_schema", schema } });
+  assert.equal(last.body.system, "Answer in JSON.");
+});
+
+test("complete() raises on a declined request", async () => {
+  stopReason = "refusal";
+  await assert.rejects(anthropicLLM({ apiKey: "sk-ant-test", baseUrl }).complete([{ role: "user", content: "x" }]), /declined \(cyber\)/);
+  stopReason = "end_turn";
 });

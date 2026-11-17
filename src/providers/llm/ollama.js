@@ -18,12 +18,27 @@ export function ollamaLLM({
   timeoutMs = 120_000,
 }) {
   if (!model) throw new Error("ollama: LLM_MODEL is required");
+  const options = { num_ctx: numCtx, num_predict: maxTokens };
+  if (temperature !== undefined) options.temperature = temperature;
+  if (seed !== undefined) options.seed = seed;
   return {
     name: `ollama:${model}`,
+    /** One reply, constrained to a JSON schema with Ollama's `format`. */
+    async complete(messages, { schema, signal } = {}) {
+      const response = await postJson(
+        joinUrl(baseUrl, "/api/chat"),
+        { model, messages, stream: false, keep_alive: keepAlive, options, ...(schema ? { format: schema } : {}) },
+        { signal, timeoutMs },
+      );
+      const data = await response.json();
+      if (data.error) throw new Error(`ollama: ${data.error}`);
+      return {
+        text: data.message?.content ?? "",
+        stopReason: data.done_reason,
+        usage: { inputTokens: data.prompt_eval_count, outputTokens: data.eval_count },
+      };
+    },
     async *stream(messages, { signal } = {}) {
-      const options = { num_ctx: numCtx, num_predict: maxTokens };
-      if (temperature !== undefined) options.temperature = temperature;
-      if (seed !== undefined) options.seed = seed;
       const response = await postJson(
         joinUrl(baseUrl, "/api/chat"),
         { model, messages, stream: true, keep_alive: keepAlive, options },

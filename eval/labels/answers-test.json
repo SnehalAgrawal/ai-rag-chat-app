@@ -1,0 +1,199 @@
+{
+ "_comment": "Labels for results/answers-test-numbers.json (docs-cited-v1, llama3.2:3b, temperature 0, seed 1; 2026-11-17), keyed by question id and the first 16 hex digits of the SHA-256 of the exact reply, so a different reply has no label. Labelled by reading each reply against the question's reference answer and evidence; by Claude (the assistant writing this code), not yet reviewed by the repository's owner. correct / partly (right, but missing something the reference answer has) / wrong / declined.",
+ "labels": {
+  "r02 | ac8c2efec426a5f0": {
+   "label": "wrong",
+   "note": "Says the key's member was suspended; cursor_expired means the pagination cursor is over 24 hours old."
+  },
+  "r04 | 7d891eeec78263d0": {
+   "label": "correct"
+  },
+  "r06 | 9d3911c4b173fd4e": {
+   "label": "partly",
+   "note": "Gives the cause (response older than 5 minutes) but not the fix (check the identity provider's clock)."
+  },
+  "r08 | 27fae5eb4fc01560": {
+   "label": "correct"
+  },
+  "r10 | ba07e78a202b3f08": {
+   "label": "partly",
+   "note": "'Retry later' instead of retrying after the time in Retry-After."
+  },
+  "r12 | 3641f80589b702eb": {
+   "label": "correct"
+  },
+  "r14 | be1e2a31d30cf90f": {
+   "label": "partly",
+   "note": "Says it must be under 5 minutes old; doesn't say it is one of the signature headers, signed with the body."
+  },
+  "r17 | 18a6161dc6f4253f": {
+   "label": "partly",
+   "note": "Names the action (Sign out all members) but not where it is (Settings > Security > Sessions)."
+  },
+  "r19 | ed39f1b7a2adcea1": {
+   "label": "correct"
+  },
+  "r21 | 800456f0207cac41": {
+   "label": "partly",
+   "note": "States the rule (VAT unless a valid VAT number is entered) rather than answering that no VAT is added."
+  },
+  "r23 | 8eebe75c06c57ace": {
+   "label": "correct"
+  },
+  "r25 | 0f4f774a03df379c": {
+   "label": "partly",
+   "note": "Says limits are per key per minute, without the numbers (100 on Basic, 1,000 on Pro)."
+  },
+  "r27 | e3b0c44298fc1c14": {
+   "label": "declined",
+   "note": "The evidence was in the excerpts; the model declined."
+  },
+  "r29 | efc49c24857e18a3": {
+   "label": "wrong",
+   "note": "'No' for the wrong reason (pending invitations); the reason is that prices are per organization, not per member."
+  },
+  "r32 | 69e2ae55313b12d4": {
+   "label": "correct"
+  },
+  "r34 | 329c020a53d1ea51": {
+   "label": "wrong",
+   "note": "Describes the 422 error instead of answering yes: a guest of the project can be the assignee."
+  },
+  "r36 | 6cfd3c4c81536ad6": {
+   "label": "correct"
+  },
+  "r38 | e3b0c44298fc1c14": {
+   "label": "declined",
+   "note": "The evidence was in the excerpts; the model declined."
+  },
+  "r40 | 84c06af7f81186ad": {
+   "label": "correct"
+  },
+  "q02 | 41d27bb2db026ce7": {
+   "label": "correct"
+  },
+  "q04 | 86fba1137213c8af": {
+   "label": "correct"
+  },
+  "q06 | e3b0c44298fc1c14": {
+   "label": "declined",
+   "note": "The evidence was in the excerpts; the model declined."
+  },
+  "q08 | 9580044111486eef": {
+   "label": "correct"
+  },
+  "q10 | f0514e8df84107f4": {
+   "label": "correct"
+  },
+  "q12 | ffd7280513ce285e": {
+   "label": "correct"
+  },
+  "q14 | 1ea442a134b2a184": {
+   "label": "correct"
+  },
+  "q16 | 7f920bb639c93075": {
+   "label": "correct"
+  },
+  "q18 | ef842ef20d130977": {
+   "label": "correct"
+  },
+  "q20 | 24aad5fdb54c8ccb": {
+   "label": "wrong",
+   "note": "Says the audit log isn't kept; it is kept, stops recording, and is visible again after upgrading."
+  },
+  "q23 | a883450dac59f667": {
+   "label": "wrong",
+   "note": "Describes SCIM's requirements instead of when it became available (version 6.1)."
+  },
+  "q25 | ae5b196618f378ca": {
+   "label": "correct"
+  },
+  "q27 | 9eee05bdb8b10bae": {
+   "label": "correct"
+  },
+  "q29 | edfb6a9786caa51e": {
+   "label": "correct"
+  },
+  "q31 | f556e9fd21c53a51": {
+   "label": "correct"
+  },
+  "q33 | e1f6693346173e38": {
+   "label": "correct"
+  },
+  "q36 | e3b0c44298fc1c14": {
+   "label": "declined",
+   "note": "The evidence was in the excerpts; the model declined."
+  },
+  "q38 | 1ea442a134b2a184": {
+   "label": "wrong",
+   "note": "A flat 'No'; Members can change settings of projects they created."
+  },
+  "q40 | a3b89e90cf1e4156": {
+   "label": "correct"
+  },
+  "q42 | 0ea6670e3c9a6a59": {
+   "label": "wrong",
+   "note": "3 minutes; the third retry is sent 1 hour after the first attempt."
+  },
+  "q44 | 51ed0c2e3ac99771": {
+   "label": "correct"
+  },
+  "q46 | f44bca6c8d649b8d": {
+   "label": "correct"
+  },
+  "q48 | 66dbae68e4f498ba": {
+   "label": "correct"
+  },
+  "q50 | a6cc3856744a7260": {
+   "label": "correct"
+  },
+  "q52 | 19c2ddd5bf0a8835": {
+   "label": "correct"
+  },
+  "q54 | ee2464172a697f89": {
+   "label": "correct"
+  },
+  "q56 | 814bb6b8dc12188a": {
+   "label": "correct"
+  },
+  "q58 | 4730c7bc9e06168f": {
+   "label": "correct"
+  },
+  "q60 | b2161240797e39de": {
+   "label": "correct"
+  },
+  "u11 | e3b0c44298fc1c14": {
+   "label": "declined"
+  },
+  "u12 | e3b0c44298fc1c14": {
+   "label": "declined"
+  },
+  "u13 | e3b0c44298fc1c14": {
+   "label": "declined"
+  },
+  "u14 | 77b68675ce68915f": {
+   "label": "wrong",
+   "note": "Says yes to a calendar view, which the documents never mention."
+  },
+  "u15 | e3b0c44298fc1c14": {
+   "label": "declined"
+  },
+  "u16 | e3b0c44298fc1c14": {
+   "label": "declined"
+  },
+  "u17 | 1ea442a134b2a184": {
+   "label": "wrong",
+   "note": "A flat 'No' to templates; the documents say nothing about them."
+  },
+  "u18 | e3b0c44298fc1c14": {
+   "label": "declined"
+  },
+  "u19 | ddc2bfe5c9fc5d16": {
+   "label": "wrong",
+   "note": "Invents a settings location for a colour theme."
+  },
+  "u20 | e3b0c44298fc1c14": {
+   "label": "declined"
+  }
+ }
+}
