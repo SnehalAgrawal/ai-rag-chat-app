@@ -22,10 +22,11 @@ Measured on [rag-engineering's](https://github.com/SnehalAgrawal/rag-engineering
 |---|---|
 | Retrieval, against rag-engineering's published numbers | **35 of 35** numbers reproduced exactly |
 | Evidence found for 48 test questions within 1,000 tokens | **48 of 48** with the default (vector top 10, reranked), against 47 for hybrid search alone |
-| Local cross-encoder against an LLM judge as reranker | the same 48 of 48 at 1,000 tokens, about 7 times faster |
+| Local cross-encoder against an LLM judge as reranker | the same 48 of 48 at 1,000 tokens, about 9 times faster |
 | Answers to the 48 test questions (`llama3.2:3b`, local) | 31 correct, 6 partly, 7 wrong, 4 declined; the evidence was in the excerpts for all 48 |
 | 10 questions the documents don't answer | 7 declined, 3 invented |
 | The same documents as PDFs | 170 of 170 evidence passages kept; retrieval as good as on the Markdown |
+| Question to answer, all local, on a laptop | a median of 2.1 s (90th percentile 2.8 s), of which the model's answer is 1.7–1.8 s |
 
 The weak point is the 3B model reading the excerpts, not retrieval. A larger model (OpenAI or Claude, through `LLM_PROVIDER`) may do better; that hasn't been measured here.
 
@@ -66,6 +67,7 @@ npm run eval:retrieval   # retrieval on the frozen questions, against the publis
 npm run eval:rerank      # reranking, likewise (the LLM judge takes about 10 minutes)
 npm run eval:answers     # answers to the test questions; every reply saved for labelling
 npm run eval:pdf         # the same documents as PDF: what extraction keeps
+npm run measure:latency  # time per stage, on the test questions (refuses to run on battery)
 npm run record:demo      # a screen recording of the app, driven in Chrome
 ```
 
@@ -153,13 +155,13 @@ Evidence found for the 48 test questions:
 What this shows:
 
 - **The cross-encoder matches the LLM judge at the default budget of 1,000 tokens.** Both find 48 of 48 when they rerank vector search's top 10. At 500 tokens the cross-encoder finds one question fewer (45 against 46).
-- **The cross-encoder is much cheaper.** It reranked 10 candidates in about 0.26 s. The LLM judge makes one call per candidate, and took 197 ms per call in this run, so about 2 s for 10. Both timings are from a run on battery power, so they're indicative only; the demo measured 166–184 ms per judge call on mains power.
+- **The cross-encoder is much cheaper.** It reranked 10 candidates in a median of 0.24 s. The LLM judge makes one call per candidate, at a median of 214 ms per call, so about 2.1 s for 10: about 9 times as long. The demo measured 166–184 ms per judge call; during this run a virtual machine was using most of one CPU core. (On battery, the day before: 0.26 s and 197 ms.)
 - **So the default is vector search's top 10, reranked by the cross-encoder.** It finds 48 at 1,000 tokens, against 47 for RRF without reranking.
 - **Reranking RRF's candidates made results slightly worse** with either reranker, as the demo found. RRF's order was already good where it had the evidence. That's why the app reranks vector search's candidates instead.
 - **No candidate was truncated.** The cross-encoder reads at most 512 of its own tokens per pair, and the longest of the 2,581 pairs was 503.
-- **The quantised model (q8) isn't the default, though it's a third of the size.** It found the same questions here, but its score for a passage depended on which other passages were scored in the same batch: one passage scored −1.343 alone and −1.412 or −1.427 alongside others. That's because its activations are quantised with a scale taken from the whole batch. So with it, a passage's rank could depend on the other candidates. The full-precision model gave identical scores in any batch, at the same speed. A test checks this.
+- **The quantised model (q8) isn't the default, though it's a third of the size.** It found the same questions here, but its score for a passage depended on which other passages were scored in the same batch: one passage scored −1.343 alone and −1.412 or −1.427 alongside others. That's because its activations are quantised with a scale taken from the whole batch. So with it, a passage's rank could depend on the other candidates. The full-precision model gave identical scores in any batch, and was no slower (0.24 s for 10 candidates, against 0.28 s). A test checks this.
 
-Recorded on 2026-11-16 on an Apple M4 Pro, on battery power, with Node 24.16.0, Ollama 0.40.16, `nomic-embed-text` (`0a109f422b47`), `llama3.2:3b` (`a80c4f17acd5`), transformers.js 4.3.2, and `mxbai-rerank-xsmall-v1` at revision `b5c6e9da`. The counts don't depend on power.
+Recorded on an Apple M4 Pro with Node 24.16.0, Ollama 0.40.16, `nomic-embed-text` (`0a109f422b47`), `llama3.2:3b` (`a80c4f17acd5`), transformers.js 4.3.2, and `mxbai-rerank-xsmall-v1` at revision `b5c6e9da`: first on 2026-11-16 on battery power, then on 2026-11-17 on mains power. Every count was identical in both runs; the timings above are from the run on mains power.
 
 ## Answers, measured
 
@@ -200,7 +202,7 @@ What these results show:
   `GATE=vector` turns it on.
 - **Rewriting follow-ups** retrieved the evidence for 7 of the 8 conversations, against 6 when the follow-up was used as asked. That's too few to show an effect. The one change it made mattered, though: "Can we change that later?" became "Can we change the data region later?", and a confident wrong answer about something else became a decline. The 3B model sometimes left a follow-up unchanged ("And per year?").
 
-An answer took a median of 1.5 s on mains power: an Apple M4 Pro, Ollama 0.40.16, `llama3.2:3b` (`a80c4f17acd5`), recorded on 2026-11-17.
+The model's answer took a median of 1.5 s in this evaluation (2026-11-17, on mains power), and 1.7–1.8 s in the [latency runs](#latency-measured) below.
 
 ## PDF documents, measured
 
@@ -227,6 +229,30 @@ Two things were hard, and both were found by measuring:
 - **Monospaced fonts.** The column threshold was first 0.45 times the font size, because a word space in a proportional font is about a quarter of it. But a monospaced font's space is 0.6, so in a PDF set in one, every word became a column of its own, and the text came back as a jumble of table cells. That happened to the old sample document in [`samples/`](samples/) (made by macOS, not Chrome), and to every code block in the evaluation API reference. Measured across all six PDFs, gaps between words are 0 to 0.6 times the font size and gaps between table cells are 1.15 or more, so the threshold is now 0.9. The evaluation numbers above didn't change, and tests cover both cases.
 
 **What these PDFs don't cover.** They're clean, digitally made PDFs: one column, real text, consistent fonts. Real PDFs can be harder, with scans (no text at all), two-column layouts, text drawn as images, headers and footers repeated on every page, or tables without borders. Those aren't measured here. A PDF whose text was broken mid-word at the end of each line (as the sample's is) keeps the break: "Northwind La bs".
+
+## Latency, measured
+
+`npm run measure:latency` sends the test questions through the app's own pipeline with the default settings, one after another: the 48 answerable questions, the 10 the documents don't answer, and the second turn of the 4 test follow-up conversations, 62 in all. It was run twice, back to back:
+
+| Stage, median / 90th percentile | Run 1 | Run 2 |
+|---|---|---|
+| rewrite a follow-up (the 4 follow-ups only) | 353 / 519 ms | 298 / 401 ms |
+| embed the question | 13 / 23 ms | 12 / 18 ms |
+| score every chunk, vector and BM25 (98 chunks) | 0.7 / 1.3 ms | 0.6 / 1.1 ms |
+| rerank 10 candidates | 382 / 677 ms | 299 / 557 ms |
+| the model's answer | 1,687 / 2,104 ms | 1,784 / 2,393 ms |
+| **total** | **2,098 / 2,816 ms** | **2,137 / 2,793 ms** |
+
+What this shows:
+
+- **About 2.1 s from question to answer, and the model's answer is most of it.** The replies are short (a median of 27 output tokens), while the prompt carries up to 1,000 tokens of excerpts. So reading the prompt is likely the larger part, but the two weren't timed separately.
+- **Searching costs almost nothing at this size:** under 1 ms to score all 98 chunks exactly. Exact search grows with the number of chunks; collections much larger than these five documents weren't measured.
+- **Reranking is the second cost,** at 0.3–0.4 s. The reranking evaluation scored the same 10 candidates in 0.24 s, back to back; inside the app, alternating with the model's calls, it was slower. The cause wasn't isolated.
+- **A follow-up costs one more model call,** to rewrite it: about 0.3 s.
+- **The first question after a start is slower:** 4.5 s and 3.1 s in the two runs. Loading the reranker took 350–375 ms; most of the rest was Ollama loading `llama3.2:3b`.
+- **Answers aren't streamed word by word.** The reply is JSON whose citations are checked before it's shown, so the page shows each stage's progress instead.
+
+Recorded on 2026-11-17 on an Apple M4 Pro on mains power, with Node 24.16.0, Ollama 0.40.16, `llama3.2:3b` (`a80c4f17acd5`), `nomic-embed-text` (`0a109f422b47`), and `mxbai-rerank-xsmall-v1` at full precision. No other work was running except a virtual machine using most of one CPU core; the one-minute load average was between 4.2 and 8.2. An earlier run, made during a video call (load average up to 13.6), was discarded. Timings on other machines will differ; the script records its setup in `results/latency.json`.
 
 ## Evaluation data
 
