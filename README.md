@@ -8,7 +8,7 @@ Chat with your documents: answers that cite the passages they came from, built o
 > 2. **Retrieval** (done): vector and keyword search fused with RRF, matching rag-engineering's published numbers exactly.
 > 3. **Reranking** (done): a cross-encoder, measured against no reranking and against an LLM judge (whose published numbers are reproduced exactly).
 > 4. **Answers** (done): checked citations, follow-up questions, and a relevance gate (measured, and off by default).
-> 5. PDF documents.
+> 5. **PDF documents** (done): text extracted with headings and tables rebuilt; on these documents, nothing lost.
 > 6. The web app.
 > 7. Measurements and the README.
 
@@ -19,7 +19,7 @@ Chat with your documents: answers that cite the passages they came from, built o
   - Documents are content-hashed: adding the same text again changes nothing, and changed text replaces the old chunks.
   - Each embedding is stored with the name of the model that made it.
   - Ids are never reused, so a citation can't silently point at different text after a document changes.
-- **Ingest:** `npm run ingest -- --collection docs path/to/*.md` (Markdown and text for now).
+- **Ingest:** `npm run ingest -- --collection docs path/to/*.md path/to/*.pdf` (Markdown, text, and PDF).
 - **Retrieval** ([`src/retrieval/`](src/retrieval/)): four ways to rank chunks for a question, with the chosen chunks filling a token budget in rank order:
   - **vector:** cosine similarity of embeddings;
   - **keyword:** BM25, which returns only chunks sharing a word with the question;
@@ -44,6 +44,7 @@ npm run ingest -- --collection eval eval/documents/*.md
 npm run check            # lint and tests; no network needed
 npm run eval:retrieval   # retrieval on the frozen questions, against the published numbers
 npm run eval:rerank      # reranking, likewise (the LLM judge takes about 10 minutes)
+npm run eval:pdf         # the same documents as PDF: what extraction keeps
 ```
 
 `npm install` brings in ONNX Runtime for the reranker, and the dependency folder comes to about 520 MB.
@@ -160,6 +161,32 @@ What these results show:
 - **Rewriting follow-ups** retrieved the evidence for 7 of the 8 conversations, against 6 when the follow-up was used as asked. That's too few to show an effect. The one change it made mattered, though: "Can we change that later?" became "Can we change the data region later?", and a confident wrong answer about something else became a decline. The 3B model sometimes left a follow-up unchanged ("And per year?").
 
 An answer took a median of 1.5 s on mains power: an Apple M4 Pro, Ollama 0.40.16, `llama3.2:3b` (`a80c4f17acd5`), recorded on 2026-11-17. A larger model, such as OpenAI's or Claude through `LLM_PROVIDER`, may misread less often. That hasn't been measured here yet.
+
+## PDF documents, measured
+
+[`src/text/pdf.js`](src/text/pdf.js) extracts a PDF's text with [PDF.js](https://github.com/mozilla/pdf.js) (`pdfjs-dist`, Apache-2.0). It rebuilds the text as Markdown, so the structure-aware chunker works the same way on it:
+- **Headings:** a line set at least 15% larger than the body text becomes a heading, with levels assigned by size.
+- **Paragraphs:** lines that wrapped inside a paragraph are joined back into one.
+- **Tables:** they're rebuilt cell by cell.
+
+A PDF with no text, such as a scan, is refused with a reason rather than stored empty.
+
+[`eval/pdf/`](eval/pdf/) holds the five evaluation documents as PDFs. They were rendered from the Markdown and printed to A4 by Google Chrome ([`scripts/make-eval-pdfs.js`](scripts/make-eval-pdfs.js)). `npm run eval:pdf` compares them with the Markdown originals. Text is compared with Markdown symbols, spacing and case ignored on both sides, so a table row read from the PDF ("Annual price | $100 | $250") matches its Markdown source. On the Markdown, this gives exactly the published numbers.
+
+| | Markdown | PDF |
+|---|---|---|
+| evidence passages present in the extracted text | 170 of 170 | **170 of 170** |
+| headings | 121 | **121** (all recovered, at the right levels) |
+| chunks / tokens | 98 / 10,913 | 98 / 10,691 |
+| test questions found, vector top 10 → reranker (500 / 1,000 / 2,000 tokens) | 45 / 48 / 48 | **46 / 48 / 48** |
+| test questions found, RRF (500 / 1,000 / 2,000 tokens) | 45 / 47 / 47 | **45 / 47 / 47** |
+
+**Tables were the hard part.** In a PDF, a table cell that wraps onto a second line is drawn as two separate pieces of text. Joining each visual line from left to right mixes up the cells: "The response wasn't signed with an Add the identity provider's current active certificate certificate (section 4.4)".
+- **What that cost:** the first version of the extractor did exactly this, and lost 5 of the 170 evidence passages. It found 44, 46 and 46 test questions instead of 46, 48 and 48.
+- **How it's fixed now:** a gap wider than about half the font size separates two columns, while a word space is about a quarter. Pieces of one row that start at the same position belong to one cell, and each cell is read top to bottom.
+- **A detail that mattered:** PDF.js adds whitespace-only pieces that span the gap between cells. Those are ignored when measuring gaps, and otherwise no gap would be seen at all.
+
+**What these PDFs don't cover.** They're clean, digitally made PDFs: one column, real text, consistent fonts. Real PDFs can be harder, with scans (no text at all), two-column layouts, text drawn as images, headers and footers repeated on every page, or tables without borders. Those aren't measured here.
 
 ## Configuration
 

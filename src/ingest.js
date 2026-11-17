@@ -1,11 +1,12 @@
-// Turns files into stored, chunked documents. Markdown and plain text for now; PDF comes
-// in a later step.
+// Turns files into stored, chunked documents: Markdown, plain text, and PDF (its text
+// extracted, with headings rebuilt from font sizes: src/text/pdf.js).
 
 import { readFile } from "node:fs/promises";
 import { basename, extname } from "node:path";
 import { chunkDocument } from "./text/chunker.js";
+import { extractPdf } from "./text/pdf.js";
 
-export const SUPPORTED = [".md", ".markdown", ".txt"];
+export const SUPPORTED = [".md", ".markdown", ".txt", ".pdf"];
 
 /** The default chunking: rag-engineering's winning strategy (structure, 512 tokens, headings copied in). */
 export const DEFAULT_STRATEGY = { kind: "structure", maxTokens: 512, headings: true };
@@ -15,6 +16,11 @@ export async function readDocument(path) {
   const extension = extname(path).toLowerCase();
   if (!SUPPORTED.includes(extension)) {
     throw new Error(`${basename(path)}: unsupported file type ${extension || "(none)"}; supported: ${SUPPORTED.join(", ")}`);
+  }
+  if (extension === ".pdf") {
+    const { text, pages } = await extractPdf(new Uint8Array(await readFile(path)));
+    if (!text.trim()) throw new Error(`${basename(path)}: no text found in ${pages} page(s); a scanned PDF needs OCR first`);
+    return { name: basename(path), text };
   }
   const text = (await readFile(path, "utf8")).replace(/\r\n?/g, "\n");
   return { name: basename(path), text };

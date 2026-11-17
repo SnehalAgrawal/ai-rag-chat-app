@@ -15,3 +15,23 @@ export function loadQuestions() {
 export function found(question, texts) {
   return question.evidence.some((alternative) => alternative.every((passage) => texts.some((t) => t.includes(passage.text))));
 }
+
+/**
+ * Text compared without Markdown symbols, spacing, or case: a table row extracted from a PDF
+ * ("Annual price $100 $250") then matches its Markdown source ("| Annual price | $100 | $250 |").
+ */
+export function normaliseForMatching(text) {
+  return text
+    .toLowerCase()
+    .replace(/[’‘]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/[|#*`>•]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** found(), comparing normalised text. */
+export function foundNormalised(question, texts) {
+  const haystacks = texts.map(normaliseForMatching);
+  return question.evidence.some((alternative) => alternative.every((p) => haystacks.some((t) => t.includes(normaliseForMatching(p.text)))));
+}
