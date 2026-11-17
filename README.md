@@ -9,8 +9,22 @@ Chat with your documents: answers that cite the passages they came from, built o
 > 3. **Reranking** (done): a cross-encoder, measured against no reranking and against an LLM judge (whose published numbers are reproduced exactly).
 > 4. **Answers** (done): checked citations, follow-up questions, and a relevance gate (measured, and off by default).
 > 5. **PDF documents** (done): text extracted with headings and tables rebuilt; on these documents, nothing lost.
-> 6. The web app.
+> 6. **The web app** (done): collections, uploads, chat with follow-ups, citations that open their passage, and the reasons behind each answer.
 > 7. Measurements and the README.
+
+![The app with five documents in a collection: an answer citing the billing guide, a follow-up answered from the conversation, and a question the documents don't cover, declined, with the excerpts it searched and their scores](docs/screenshot.png)
+
+## The app
+
+`npm start`, then open http://127.0.0.1:3000:
+- **Collections:** each one is a set of documents searched together.
+- **Uploads:** add Markdown, text or PDF files with the button, or drop them in. Each file is chunked and embedded as it arrives, so it can be searched straight away.
+- **Questions and follow-ups:** a follow-up like "And per year?" is answered in the context of the conversation.
+- **Citations:** each citation opens the cited passage, highlighted within the whole document.
+- **"I couldn't find this in your documents"** is said plainly. An answer whose citations couldn't be checked is marked.
+- **Why this answer:** under each answer, this shows the question that was searched for (when a follow-up was rewritten), every excerpt the model read with its reranker and similarity scores, which ones it cited, and how long each stage took.
+
+The server listens on `127.0.0.1` only. There are no accounts, so anyone who can reach the server can read and change its documents. Its API is described at the top of [`src/server.js`](src/server.js). `npm run check:browser` runs the app in headless Chrome with the real models: it uploads the five evaluation documents (one as a PDF), asks a question and a follow-up, opens each citation, and asks something the documents don't cover.
 
 ## What works now
 
@@ -40,11 +54,13 @@ Requires Node.js 24 or newer, and [Ollama](https://ollama.com):
 ollama pull nomic-embed-text
 npm install
 npm run models           # the reranker, 284 MB, checksums verified
+npm start                # the app at http://127.0.0.1:3000
 npm run ingest -- --collection eval eval/documents/*.md
 npm run check            # lint and tests; no network needed
 npm run eval:retrieval   # retrieval on the frozen questions, against the published numbers
 npm run eval:rerank      # reranking, likewise (the LLM judge takes about 10 minutes)
 npm run eval:pdf         # the same documents as PDF: what extraction keeps
+npm run check:browser    # the web app end to end in headless Chrome
 ```
 
 `npm install` brings in ONNX Runtime for the reranker, and the dependency folder comes to about 520 MB.

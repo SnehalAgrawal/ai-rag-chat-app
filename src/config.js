@@ -18,6 +18,10 @@ export function loadConfig(env = process.env) {
   const embeddingProvider = choice(env, "EMBEDDING_PROVIDER", Object.keys(EMBEDDING_DEFAULTS), "ollama");
   return {
     databasePath: env.DATABASE_PATH || "data/app.db",
+    port: integer(env, "PORT") ?? 3000,
+    // Local only by default: there are no accounts.
+    host: env.HOST || "127.0.0.1",
+    maxUploadMB: integer(env, "MAX_UPLOAD_MB") ?? 20,
     llm: {
       provider: llmProvider,
       baseUrl: env.LLM_BASE_URL || LLM_DEFAULTS[llmProvider].baseUrl,

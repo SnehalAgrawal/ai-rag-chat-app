@@ -61,14 +61,17 @@ export class Answerer {
 
   /**
    * @param {string} question
-   * @param {{ history?: { role: "user" | "assistant", content: string }[], signal?: AbortSignal }} [options]
+   * @param {{ history?: { role: "user" | "assistant", content: string }[], signal?: AbortSignal, onStage?: (event: object) => void }} [options]
+   *   onStage reports progress: rewriting, retrieving (with the search question), retrieved (with the excerpts), answering.
    * @returns {Promise<Answer & { retrieved: object[], timings: object, usage: object, gateSignal: number, promptVersion: string }>}
    */
-  async ask(question, { history = [], signal } = {}) {
+  async ask(question, { history = [], signal, onStage = () => {} } = {}) {
     const timings = {};
     let started = performance.now();
+    if (this.rewrite && history.length) onStage({ stage: "rewriting" });
     const searchQuestion = await this.standalone(question, history, { signal });
     timings.rewriteMs = performance.now() - started;
+    onStage({ stage: "retrieving", question: searchQuestion });
 
     const { method, budget, candidates } = this.retrieval;
     const search = await this.retriever.search(searchQuestion, {
@@ -81,6 +84,7 @@ export class Answerer {
     const retrieved = search.chunks.map(({ label, document, text, tokens, start, end, rerankScore, vectorScore }, i) => ({
       number: i + 1, label, document, text, tokens, start, end, rerankScore, vectorScore,
     }));
+    onStage({ stage: "retrieved", retrieved });
     const best = search.best ?? { vector: -Infinity, rerank: null };
     const base = { question: searchQuestion, retrieved, best, promptVersion: this.prompt.version, timings, usage: {} };
     const empty = { answer: "", citations: [], invalidCitations: [] };
@@ -98,6 +102,7 @@ export class Answerer {
       ...history.slice(-HISTORY_TURNS * 2),
       { role: "user", content: question },
     ];
+    onStage({ stage: "answering" });
     started = performance.now();
     const reply = await this.llm.complete(messages, { schema: this.prompt.schema, signal });
     timings.answerMs = performance.now() - started;

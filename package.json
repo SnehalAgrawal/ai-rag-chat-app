@@ -9,6 +9,7 @@
     "node": ">=24"
   },
   "scripts": {
+    "start": "node src/main.js",
     "ingest": "node scripts/ingest.js",
     "test": "node --test",
     "lint": "eslint .",
@@ -18,7 +19,8 @@
     "eval:rerank": "node scripts/eval-rerank.js",
     "tune:gate": "node scripts/tune-gate.js",
     "eval:answers": "node scripts/eval-answers.js",
-    "eval:pdf": "node scripts/eval-pdf.js"
+    "eval:pdf": "node scripts/eval-pdf.js",
+    "check:browser": "node scripts/browser-check.js"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ask your documents</title>
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar" aria-label="Documents">
+        <h1>Ask your documents</h1>
+        <p id="models" class="muted small"></p>
+
+        <label class="label" for="collection">Collection</label>
+        <div class="row">
+          <select id="collection"></select>
+          <button id="new-collection" type="button" class="secondary">New</button>
+        </div>
+        <form id="new-collection-form" class="row" hidden>
+          <input id="new-collection-name" placeholder="name, e.g. handbook" aria-label="New collection name" autocomplete="off" />
+          <button type="submit">Create</button>
+        </form>
+
+        <h2>Documents</h2>
+        <ul id="documents" class="documents"></ul>
+        <label id="dropzone" class="dropzone">
+          <input id="files" type="file" multiple accept=".md,.markdown,.txt,.pdf" />
+          <span><strong>Add files</strong> or drop them here</span>
+          <span class="muted small">Markdown, text, or PDF</span>
+        </label>
+        <p id="upload-status" class="muted small" role="status" aria-live="polite"></p>
+      </aside>
+
+      <main class="chat">
+        <ol id="thread" class="thread" aria-label="Conversation" aria-live="polite"></ol>
+        <p id="empty" class="muted empty">Add documents, then ask a question about them. Answers cite the passages they come from.</p>
+        <form id="ask" class="composer">
+          <textarea id="question" rows="2" placeholder="Ask a question about these documents" aria-label="Question" required></textarea>
+          <div class="composer-actions">
+            <button id="new-chat" type="button" class="secondary">New conversation</button>
+            <button id="send" type="submit">Ask</button>
+          </div>
+        </form>
+      </main>
+    </div>
+
+    <dialog id="viewer" aria-labelledby="viewer-title">
+      <header class="viewer-header">
+        <h2 id="viewer-title"></h2>
+        <button id="viewer-close" type="button" class="secondary" aria-label="Close">Close</button>
+      </header>
+      <pre id="viewer-text" class="viewer-text"></pre>
+    </dialog>
+  </body>
+</html>

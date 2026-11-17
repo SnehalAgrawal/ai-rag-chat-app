@@ -16,4 +16,8 @@ export default [
       "prefer-const": "error",
     },
   },
+  {
+    files: ["public/**/*.js"],
+    languageOptions: { globals: { ...globals.browser } },
+  },
 ];

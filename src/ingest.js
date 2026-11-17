@@ -13,17 +13,27 @@ export const DEFAULT_STRATEGY = { kind: "structure", maxTokens: 512, headings: t
 
 /** Reads a file's text, with Windows line endings normalised (chunk offsets index this text). */
 export async function readDocument(path) {
-  const extension = extname(path).toLowerCase();
+  return documentFromBytes(basename(path), new Uint8Array(await readFile(path)));
+}
+
+/** A document from a file's name and bytes (an upload, or a file read from disk). */
+export async function documentFromBytes(name, bytes) {
+  const extension = extname(name).toLowerCase();
   if (!SUPPORTED.includes(extension)) {
-    throw new Error(`${basename(path)}: unsupported file type ${extension || "(none)"}; supported: ${SUPPORTED.join(", ")}`);
+    throw new Error(`${name}: unsupported file type ${extension || "(none)"}; supported: ${SUPPORTED.join(", ")}`);
   }
   if (extension === ".pdf") {
-    const { text, pages } = await extractPdf(new Uint8Array(await readFile(path)));
-    if (!text.trim()) throw new Error(`${basename(path)}: no text found in ${pages} page(s); a scanned PDF needs OCR first`);
-    return { name: basename(path), text };
+    const { text, pages } = await extractPdf(bytes);
+    if (!text.trim()) throw new Error(`${name}: no text found in ${pages} page(s); a scanned PDF needs OCR first`);
+    return { name, text };
   }
-  const text = (await readFile(path, "utf8")).replace(/\r\n?/g, "\n");
-  return { name: basename(path), text };
+  let text;
+  try {
+    text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    throw new Error(`${name}: not readable as UTF-8 text`);
+  }
+  return { name, text: text.replace(/\r\n?/g, "\n") };
 }
 
 /**
