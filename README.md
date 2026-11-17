@@ -4,6 +4,8 @@ Chat with your documents. Every answer cites the passages it came from, and when
 
 ![The app with five documents in a collection: an answer citing the billing guide, a follow-up answered from the conversation, and a question the documents don't cover, declined, with the excerpts it searched and their scores](docs/screenshot.png)
 
+[demo.webm](https://github.com/user-attachments/assets/94e558bb-8ae0-416e-97f3-5e99bb66485f)
+
 ## What it does
 
 `npm start`, then open http://127.0.0.1:3000:
